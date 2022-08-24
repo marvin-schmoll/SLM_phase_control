@@ -25,6 +25,15 @@ y_img = np.fft.fftshift(np.fft.fftfreq(slm_size[0],
 extent_img = [x_img[0]*1e3,x_img[-1]*1e3,y_img[0]*1e3,y_img[-1]*1e3]
 
 
+def normalized(data, normalization='max'):
+    if normalization == 'max':
+        return data / np.max(data)
+    elif normalization == 'sum':
+        return data / np.sum(data)
+    else:
+        raise ValueError('Specify normalization with "max" or "sum".')
+
+
 def gaussian(sigma, mu_x=0, mu_y=0):
     X = np.arange(slm_size[1]) - slm_size[1]/2
     Y = np.arange(slm_size[0]) - slm_size[0]/2
@@ -39,6 +48,7 @@ def flat_top(r, dx=0, dy=0):
 
 shapes = {'2D Gaussian': gaussian, 'flat-top circle': flat_top}
 
+# TODO: Change fftshift to ifftshift in appropriate places
 
 def GS_algorithm(hologram, iterations, caller=None):
     
@@ -55,7 +65,7 @@ def GS_algorithm(hologram, iterations, caller=None):
         f_slm = A*np.exp(1j*phi)
         
         # propagate
-        x = np.fft.fftshift(np.fft.fft2(f_slm))
+        x = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(f_slm)))
         B = np.abs(x)
         theta = np.angle(x)
         
@@ -71,7 +81,83 @@ def GS_algorithm(hologram, iterations, caller=None):
     return A, phi
 
 
-algorithms = {'Gerchberg-Saxton (GS)': GS_algorithm}
+def DCGS_algorithm(hologram, iterations, caller=None, phi0=None):
+    
+    # determine signal domain
+    signal_domain = normalized(hologram, 'max') > 0.1
+    #signal_domain1 = normalized(hologram, 'max') > 0.1
+    #signal_domain2 = normalized(hologram, 'max') > 0.5
+    
+    plt.figure('signal', clear=True)
+    plt.imshow(signal_domain, cmap='PiYG', interpolation='None', 
+               extent=extent_img)
+    plt.xlabel('[mm]')
+    plt.ylabel('[mm]')
+    plt.colorbar()
+    plt.show()
+    
+    #hologram = normalized(hologram, 'sum')
+    
+    # initial guess for the phase
+    if phi0 is None:
+        phi = np.random.rand(*slm_size) * 2 * np.pi - np.pi
+    else:
+        phi = phi0
+    
+    for i in range(iterations):
+        if caller is not None:
+            caller.progress['value'] = i / iterations * 100
+            caller.frm_calc.update_idletasks()
+    
+        # restore SLM-plane intensity
+        A = normalized(np.ones(slm_size), 'sum')
+        print(np.sum(A))
+        f_slm = A*np.exp(1j*phi)
+        
+        # propagate
+        x = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(f_slm)))
+        B = np.abs(x)
+        theta = np.angle(x)
+        
+        #B_circ = np.where(signal_domain, B, 0)
+        #sb = np.sum(B_circ)
+        #print(sb)
+        
+        # apply constraints (Chang et al. 2015; eq. 1 with phi_0 = 0)
+        alpha = 1
+        beta = 1
+        gamma = 1
+        G_sig = (2 * alpha * hologram - beta * B) 
+        G_free = gamma * B * np.exp(1j*theta)
+        f_img = np.where(signal_domain, G_sig, G_free)
+        
+        #G_sig1 = (2 * alpha * hologram - beta * B)
+        #G_free1 = gamma * B
+        #G_sig2 = 1
+        #G_free2 = np.exp(1j*theta)
+        #f_img1 = np.where(signal_domain1, G_sig1, G_free1)
+        #f_img2 = np.where(signal_domain2, G_sig2, G_free2)
+        #f_img = f_img1 * f_img2
+        
+        plt.figure('test', clear=True)
+        plt.imshow(np.abs(G_free), cmap='gray', interpolation='None', 
+                   extent=extent_img)
+        plt.xlabel('[mm]')
+        plt.ylabel('[mm]')
+        plt.colorbar()
+        plt.show()
+        #print(np.sum(np.abs(G_free)))
+        
+        # invert propagation
+        y = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(f_img)))
+        A = normalized(np.abs(y), 'sum')
+        phi = np.angle(y)
+    
+    return A, phi
+
+
+algorithms = {'Gerchberg-Saxton (GS)': GS_algorithm, 
+              'double-constraint GS (DCGS)': DCGS_algorithm}
 
 
 
@@ -261,20 +347,34 @@ class GS_window(object):
 
 
 if __name__ == '__main__':
+    #import matplotlib
+    #matplotlib.use("QtAgg")
     
     A = np.ones(slm_size)
-    B, phi = GS_algorithm(flat_top(7), 15)
+    B0, phi0 = GS_algorithm(gaussian(50), 5)
+    B, phi = DCGS_algorithm(gaussian(50), 5, phi0 = phi0)
     f_slm = abs(A)*np.exp(1j*phi)
     
-    fft = np.fft.fftshift(np.fft.fft2(f_slm))
+    fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(np.pad(f_slm, 1000))))
     
+    plt.figure('Phase pattern', clear=True)
     plt.imshow(phi, cmap='twilight', interpolation='None', extent=extent_slm)
     plt.xlabel('[mm]')
     plt.ylabel('[mm]')
     plt.colorbar(label='phase [rad]')
     plt.show()
     
-    plt.imshow(np.abs(fft), cmap='inferno', extent=extent_img)
+    plt.figure('Focus intensity', clear=True)
+    plt.imshow(np.abs(fft), cmap='inferno', interpolation='None', 
+               extent=extent_img)
+    plt.xlabel('[mm]')
+    plt.ylabel('[mm]')
+    plt.colorbar()
+    plt.show()
+
+    plt.figure('Focus phase', clear=True)
+    plt.imshow(np.angle(fft), cmap='twilight', interpolation='None', 
+               extent=extent_img)
     plt.xlabel('[mm]')
     plt.ylabel('[mm]')
     plt.colorbar()
