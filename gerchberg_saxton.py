@@ -23,6 +23,7 @@ x_img = np.fft.fftshift(np.fft.fftfreq(slm_size[1],
 y_img = np.fft.fftshift(np.fft.fftfreq(slm_size[0], 
                                        pixel_size/(wavelength*focal_length)))
 extent_img = [x_img[0]*1e3,x_img[-1]*1e3,y_img[0]*1e3,y_img[-1]*1e3]
+focus_pixel_size = x_img[1] - x_img[0]
 
 
 def normalized(data, normalization='max'):
@@ -35,16 +36,25 @@ def normalized(data, normalization='max'):
 
 
 def gaussian(sigma, mu_x=0, mu_y=0):
+    sigma_px = sigma / focus_pixel_size
     X = np.arange(slm_size[1]) - slm_size[1]/2
     Y = np.arange(slm_size[0]) - slm_size[0]/2
     x, y = np.meshgrid(X,Y)
-    return np.exp(-1/2 * (((x-mu_x)**2+(y-mu_y)**2)/sigma**2))
+    return np.exp(-1/2 * (((x-mu_x)**2+(y-mu_y)**2)/sigma_px**2))
 
 def flat_top(r, dx=0, dy=0):
+    r_px = r / focus_pixel_size
     X = np.arange(slm_size[1]) - slm_size[1]/2
     Y = np.arange(slm_size[0]) - slm_size[0]/2
     x, y = np.meshgrid(X,Y)
-    return np.where((x-dx)**2+(y-dy)**2 < r**2, 1, 0)
+    return np.where((x-dx)**2+(y-dy)**2 < r_px**2, 1, 0)
+
+def square(l, dx=0, dy=0):
+    l_px = l / focus_pixel_size
+    X = np.arange(slm_size[1]) - slm_size[1]/2
+    Y = np.arange(slm_size[0]) - slm_size[0]/2
+    x, y = np.meshgrid(X,Y)
+    return np.where(np.logical_and(np.abs(x-dx)<l_px, np.abs(y-dy)<l_px), 1, 0)
 
 shapes = {'2D Gaussian': gaussian, 'flat-top circle': flat_top}
 
@@ -116,7 +126,7 @@ def DCGS_algorithm(hologram, iterations, caller=None, phi0=None):
         
         # propagate
         x = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(f_slm)))
-        B = np.abs(x)
+        B = normalized(np.abs(x))
         theta = np.angle(x)
         
         #B_circ = np.where(signal_domain, B, 0)
@@ -126,7 +136,7 @@ def DCGS_algorithm(hologram, iterations, caller=None, phi0=None):
         # apply constraints (Chang et al. 2015; eq. 1 with phi_0 = 0)
         alpha = 1
         beta = 1
-        gamma = 1
+        gamma = 0.2
         G_sig = (2 * alpha * hologram - beta * B) 
         G_free = gamma * B * np.exp(1j*theta)
         f_img = np.where(signal_domain, G_sig, G_free)
@@ -154,6 +164,8 @@ def DCGS_algorithm(hologram, iterations, caller=None, phi0=None):
         phi = np.angle(y)
     
     return A, phi
+
+
 
 
 algorithms = {'Gerchberg-Saxton (GS)': GS_algorithm, 
@@ -351,9 +363,9 @@ if __name__ == '__main__':
     #matplotlib.use("QtAgg")
     
     A = np.ones(slm_size)
-    B0, phi0 = GS_algorithm(gaussian(50), 5)
-    B, phi = DCGS_algorithm(gaussian(50), 5, phi0 = phi0)
-    f_slm = abs(A)*np.exp(1j*phi)
+    B, phi = GS_algorithm(gaussian(100e-6), 5)
+    #B, phi = DCGSB_algorithm(flat_top(25, 100, 100), 15, phi0 = phi0)
+    f_slm = abs(A)*np.exp(1j*0)
     
     fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(np.pad(f_slm, 1000))))
     
