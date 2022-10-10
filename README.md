@@ -14,8 +14,14 @@ These can be found and changed in the file "settings.py".
 
 "santec_driver" contains drivers to communicate with the Santec-SLMs.
 
+"gxipy" contains drivers to communicate with the Daheng camera.
+
+
+### New features
+
+Can now generate Hologram phase patterns with the Gerchberg-Saxton-algorithm.
+
 
 ### Updates
 
-Currently being updated to generate Hologram phase patterns with the Gerchberg-Saxton-algorithm.
-The GS-algorithm is already implemented "gerchberg_saxton.py", but not yet included in the main program.
+Work on a feedback algorithm for delay stabilization.

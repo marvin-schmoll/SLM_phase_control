@@ -31,6 +31,7 @@ class main_screen(object):
         self.main_win.rowconfigure(2, minsize=100, weight=1)
         self.pub_win = None
         self.prev_win = None
+        self.phase_map = np.zeros(slm_size)
 
         # creating frames
         frm_top = tk.Frame(self.main_win)
@@ -112,7 +113,7 @@ class main_screen(object):
         self.load('./last_settings.txt')
 
     def open_fbck(self):
-        self.fbcker = feedbacker.feedbacker(self.pub_win)
+        self.fbcker = feedbacker.feedbacker(self)
 
     def open_prev(self):
         if self.prev_win is not None:
@@ -126,19 +127,19 @@ class main_screen(object):
 
     def open_pub(self):
         self.ent_scr.config(state='disabled')
-        phase = self.get_phase()
+        self.phase_map = self.get_phase()
         if SANTEC_SLM: # Santec SLM Dispay routine
             self.pub_win = int(self.ent_scr.get())
             slm.SLM_Disp_Open(int(self.ent_scr.get()))
-            slm.SLM_Disp_Data(int(self.ent_scr.get()), phase,
+            slm.SLM_Disp_Data(int(self.ent_scr.get()), self.phase_map,
                               slm_size[1], slm_size[0])
         else: # Hamamatsu SLM Display routine
             if self.pub_win is not None:
-                self.pub_win.update_img(phase)
+                self.pub_win.update_img(self.phase_map)
             else:
                 self.pub_win = publish_window.pub_screen(
-                    self, self.ent_scr.get(), phase)
-        self.update_phase_plot(phase)
+                    self, self.ent_scr.get(), self.phase_map)
+        self.update_phase_plot(self.phase_map)
 
     def do_scan(self):
         if self.strvar_delay.get() == '':

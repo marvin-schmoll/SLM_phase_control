@@ -1,3 +1,4 @@
+from settings import SANTEC_SLM, slm_size, bit_depth
 import cam
 import tkinter as tk
 import numpy as np
@@ -20,10 +21,11 @@ from pynput import keyboard
 class feedbacker(object):
     """works back and forth with publish_window"""
 
-    def __init__(self, pub_win):
-        self.pub_win = pub_win
+    def __init__(self, parent):
+        self.parent = parent
         self.win = tk.Toplevel()
-        self.win.geometry('500x950+300+100')
+        if not SANTEC_SLM:
+            self.win.geometry('500x950+300+100')
 
         # creating frames
         frm_cam = tk.Frame(self.win)
@@ -182,7 +184,6 @@ class feedbacker(object):
             print('Get Out')
             stop_cam = stop_loop()
 
-
         return stop_cam
 
     def callback(self, action, P, text):
@@ -204,7 +205,13 @@ class feedbacker(object):
             phi = float(self.ent_flat.get())
         else:
             phi = 0
-        self.pub_win.publish_img(self.pub_win.phase + phi/2*255)
+        phase_map = self.parent.phase_map + phi/2*bit_depth
+        if SANTEC_SLM:
+            self.parent.slm.SLM_Disp_Open(int(self.ent_scr.get()))
+            self.parent.slm.SLM_Disp_Data(int(self.ent_scr.get()), phase_map,
+                                          slm_size[1], slm_size[0])
+        else:
+            self.parent.pub_win.publish_img(phase_map)
 
     def init_cam(self):
         print("")
