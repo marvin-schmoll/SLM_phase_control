@@ -200,12 +200,6 @@ class main_screen(object):
             if self.vars[ind].get() == 1:
                 print(phase_types)
                 phase += phase_types.phase()
-        # quickfix for feedback below
-        width = 200
-        maxrot = 10
-        #phase[0:width,:] = np.outer(np.ones(width),np.linspace(0,255*maxrot,phase.shape[1]))
-        phase[:,-(width+1):-1] = np.outer(np.linspace(0,255*maxrot,phase.shape[0]),np.ones(width))
-        #phase[:,0:width] = np.outer(np.linspace(0,255*maxrot,phase.shape[0]),np.ones(width))
         return phase
 
     def save(self, filepath=None):

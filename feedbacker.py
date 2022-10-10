@@ -244,13 +244,8 @@ class feedbacker(object):
 
         # start data acquisition
         cam1.stream_on()
-        single = False
-        if single:
-            self.acq_mono(cam1, 1)
-            self.cam_on_close(cam1)
-        else:
-            self.acq_mono(cam1, 10000)
-            self.cam_on_close(cam1)
+        self.acq_mono(cam1, 10000)
+        self.cam_on_close(cam1)
 
     def acq_mono(self, device, num):
         """
@@ -317,12 +312,8 @@ class feedbacker(object):
 
 
     def cam_on_close(self, device):
-
-        # stop acquisition
-        device.stream_off()
-
-        # close device
-        device.close_device()
+        device.stream_off()   # stop acquisition
+        device.close_device()   # close device
 
     def cam_img(self):
         self.render_thread = threading.Thread(target=self.init_cam)
