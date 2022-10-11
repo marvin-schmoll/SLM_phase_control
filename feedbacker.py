@@ -144,6 +144,7 @@ class feedbacker(object):
         self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
         self.img_canvas.grid(row=0, sticky='nsew')
         self.img_canvas.configure(bg='grey')
+        self.image = self.img_canvas.create_image(0, 0, anchor="nw")
 
         #setting up frm_mid
         self.figr = Figure(figsize=(5, 2), dpi=100)
@@ -295,7 +296,7 @@ class feedbacker(object):
             picture = picture.resize((500, 350), resample=0)
             picture = ImageTk.PhotoImage(picture)
             
-            self.img_canvas.create_image(250, 175, image=picture)
+            self.img_canvas.itemconfig(self.image, image=picture)
             self.img_canvas.image = picture # keep a reference!
             
             # Draw selection lines
