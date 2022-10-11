@@ -83,6 +83,10 @@ class feedbacker(object):
         self.ent_area1y = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1y)
+        self.intvar_area = tk.IntVar()
+        self.cbox_area = tk.Checkbutton(frm_ratio, text='view area',
+                           variable=self.intvar_area,
+                           onvalue=1, offvalue=0)
         lbl_pidp = tk.Label(frm_pid, text='P-value:')
         self.strvar_pidp = tk.StringVar(self.win,'1')
         self.ent_pidp = tk.Entry(
@@ -138,8 +142,9 @@ class feedbacker(object):
         but_pid_stop.grid(row=2, column=3)
 
         # setting up cam image
-        self.ImageLabel = tk.Label(frm_cam, bg = "#4682B4")
-        self.ImageLabel.grid(row=0, sticky='nsew')
+        self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
+        self.img_canvas.grid(row=0, sticky='nsew')
+        self.img_canvas.configure(bg='grey')
 
         #setting up frm_mid
         self.figr = Figure(figsize=(5, 2), dpi=100)
@@ -162,6 +167,7 @@ class feedbacker(object):
         self.lbl_angle.grid(row=1, column=1)
         self.ent_area1x.grid(row=3, column=0)
         self.ent_area1y.grid(row=3, column=1)
+        self.cbox_area.grid(row=3, column=2)
 
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
@@ -290,15 +296,22 @@ class feedbacker(object):
                 self.im_angl = np.angle(im_fft[ind])
             except:
                 self.im_angl = 0
-            self.lbl_angle.config(text=self.im_angl)
+            self.lbl_angle.config(text=np.round(self.im_angl, 8))
 
             # Show images
             picture = Image.fromarray(numpy_image)
             picture = picture.resize((500, 350), resample=0)
             CaptureFrame = picture.copy()
             picture = ImageTk.PhotoImage(picture)
-            self.ImageLabel.configure(image = picture)
-            self.ImageLabel.photo = picture
+            
+            self.img_canvas.create_image(250, 175, image=picture)
+            self.img_canvas.image = picture # keep a reference!
+            
+            # Draw selection lines
+            if self.intvar_area.get() == 1:
+                x1, x2 = xpoints1 * 500 / 1440
+                y1, y2 = ypoints1 * 350 / 1080
+                self.img_canvas.create_rectangle(x1, y1, x2, y2, outline='orange')
 
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
@@ -323,10 +336,17 @@ class feedbacker(object):
 
 
     def plot_fft(self):
+        # find maximum in the fourier trace
+        maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[3:50]))[0][0]
+        print(maxindex)
+        
         self.ax1r.clear()
         self.ax1r.plot(self.im_sum)
         self.ax2r.clear()
         self.ax2r.plot(self.abs_im_fft)
+        self.ax2r.plot(maxindex, self.abs_im_fft[maxindex]*1.2, 'v')
+        self.ax2r.text(maxindex-1, self.abs_im_fft[maxindex]*1.5, str(maxindex))
+        self.ax2r.set_xlim(0,50)
         self.img1r.draw()
 
     def plot_phase(self):
