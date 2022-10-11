@@ -1,5 +1,4 @@
 from settings import SANTEC_SLM, slm_size, bit_depth
-import cam
 import tkinter as tk
 import numpy as np
 from matplotlib.figure import Figure
@@ -173,8 +172,7 @@ class feedbacker(object):
         self.pid = PID(0.35, 0, 0, setpoint=0)
 
         #setting up a listener for catchin esc from cam1
-        global stop_cam
-        stop_cam = 0
+        self.stop_cam = 0
         global stop_pid
         stop_pid = False
         l = keyboard.Listener(on_press=self.press_callback)
@@ -183,14 +181,8 @@ class feedbacker(object):
     def press_callback(self, key):
 
         if key == keyboard.Key.esc:
-            def stop_loop():
-                global stop_cam
-                stop_cam = 1
-                return stop_cam
-            print('Get Out')
-            stop_cam = stop_loop()
-
-        return stop_cam
+            self.stop_cam = 1
+        return
 
     def callback(self, action, P, text):
         # action=1 -> insert
@@ -226,7 +218,7 @@ class feedbacker(object):
         # create a device manager
         device_manager = gx.DeviceManager()
         dev_num, dev_info_list = device_manager.update_device_list()
-        if dev_num is 0:
+        if dev_num == 0:
             print("Number of enumerated devices is 0")
             return
 
@@ -301,7 +293,6 @@ class feedbacker(object):
             # Show images
             picture = Image.fromarray(numpy_image)
             picture = picture.resize((500, 350), resample=0)
-            CaptureFrame = picture.copy()
             picture = ImageTk.PhotoImage(picture)
             
             self.img_canvas.create_image(250, 175, image=picture)
@@ -318,9 +309,8 @@ class feedbacker(object):
             self.im_phase[-1] = self.im_angl
             self.im_phase = np.unwrap(self.im_phase)
 
-            global stop_cam
-            if stop_cam ==1:
-                stop_cam = 0
+            if self.stop_cam == 1:
+                self.stop_cam = 0
                 break
 
 
