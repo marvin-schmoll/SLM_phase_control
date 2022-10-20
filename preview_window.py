@@ -17,6 +17,7 @@ class prev_screen(object):
     def __init__(self, parent):
         self.parent = parent
         self.win = tk.Toplevel()
+        self.win.protocol("WM_DELETE_WINDOW", self.close_prev)
         self.win.title('SLM Phase Control - Preview')
         btn_close = tk.Button(self.win, text='Close', command=self.close_prev)
         btn_close.grid(row=1)

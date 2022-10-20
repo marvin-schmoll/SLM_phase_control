@@ -81,6 +81,7 @@ class GS_window(object):
     def __init__(self, parent):
         self.parent = parent
         self.win = tk.Toplevel()
+        self.win.protocol("WM_DELETE_WINDOW", self.close_GS)
         self.win.title('SLM Phase Control - Hologram Generator')
         self.vcmd = (parent.parent.register(parent.callback))
         

@@ -23,6 +23,7 @@ class feedbacker(object):
     def __init__(self, parent):
         self.parent = parent
         self.win = tk.Toplevel()
+        self.win.protocol("WM_DELETE_WINDOW", self.on_close)
         if not SANTEC_SLM:
             self.win.geometry('500x950+300+100')
 
@@ -388,3 +389,4 @@ class feedbacker(object):
         plt.close(self.figr)
         plt.close(self.figp)
         self.win.destroy()
+        self.parent.fbck_win = None

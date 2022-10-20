@@ -25,12 +25,14 @@ class main_screen(object):
     def __init__(self, parent):
         """Constructor"""
         self.main_win = parent
+        self.main_win.protocol("WM_DELETE_WINDOW", self.exit_prog)
         self.main_win.title('SLM Phase Control')
 
         self.main_win.columnconfigure(0, minsize=250, weight=1)
         self.main_win.rowconfigure(2, minsize=100, weight=1)
         self.pub_win = None
         self.prev_win = None
+        self.fbck_win = None
         self.phase_map = np.zeros(slm_size)
 
         # creating frames
@@ -113,7 +115,8 @@ class main_screen(object):
         self.load('./last_settings.txt')
 
     def open_fbck(self):
-        self.fbcker = feedbacker.feedbacker(self)
+        if self.fbck_win is None:
+            self.fbck_win = feedbacker.feedbacker(self)
 
     def open_prev(self):
         if self.prev_win is not None:
