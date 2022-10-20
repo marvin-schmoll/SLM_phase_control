@@ -10,7 +10,6 @@ import gxipy as gx
 from PIL import Image, ImageTk
 import time
 import draw_polygon
-from skimage.draw import polygon
 from simple_pid import PID
 import threading
 from pynput import keyboard
@@ -32,9 +31,10 @@ class feedbacker(object):
         frm_bot = tk.Frame(self.win)
         frm_cam_but = tk.Frame(frm_cam)
         frm_cam_but_set = tk.Frame(frm_cam_but)
-        frm_pid = tk.Frame(frm_bot)
+        frm_plt = tk.Frame(self.win)
         frm_mid = tk.Frame(self.win)
-        frm_ratio = tk.Frame(frm_mid)
+        frm_ratio = tk.LabelFrame(frm_mid, text='Phase extraction')
+        frm_pid = tk.LabelFrame(frm_mid, text='PID controller')
 
         # creating buttons n labels
         but_exit = tk.Button(frm_bot, text='EXIT', command=self.on_close)
@@ -43,11 +43,12 @@ class feedbacker(object):
         but_cam_line = tk.Button(frm_cam_but, text='Plot fft', command=self.plot_fft)
         self.bVar_cam = tk.BooleanVar(self.win,True)
         but_cam_phi = tk.Button(frm_cam_but, text='Scan 2pi', command=self.fast_scan)
-        lbl_phi = tk.Label(frm_bot, text='Phase shift (in pi):')
+        lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
+        lbl_phi_2 = tk.Label(frm_ratio, text='pi')
         vcmd = (self.win.register(self.callback))
         self.strvar_flat = tk.StringVar()
         self.ent_flat = tk.Entry(
-            frm_bot, width=11,  validate='all',
+            frm_ratio, width=11,  validate='all',
             validatecommand=(vcmd, '%d', '%P', '%S'),
             textvariable=self.strvar_flat)
         lbl_cam_ind = tk.Label(frm_cam_but_set, text='Camera index:')
@@ -56,7 +57,7 @@ class feedbacker(object):
             frm_cam_but_set, width=11,  validate='all',
             validatecommand=(vcmd, '%d', '%P', '%S'),
             textvariable=self.strvar_cam_ind)
-        lbl_cam_exp = tk.Label(frm_cam_but_set, text='Camera exposure (us):')
+        lbl_cam_exp = tk.Label(frm_cam_but_set, text='Camera exposure (µs):')
         self.strvar_cam_exp = tk.StringVar(self.win,'1000')
         self.ent_cam_exp = tk.Entry(
             frm_cam_but_set, width=11,  validate='all',
@@ -107,9 +108,14 @@ class feedbacker(object):
 
         # setting up
         frm_cam.grid(row=0, column=0, sticky='nsew')
-        frm_mid.grid(row=1, column=0, sticky='nsew')
-        frm_bot.grid(row=2, column=0, sticky='nsew')
+        frm_plt.grid(row=1, column=0, sticky='nsew')
+        frm_mid.grid(row=2, column=0, sticky='nsew')
+        frm_bot.grid(row=3, column=0)
         frm_cam_but.grid(row=1, column=0, sticky='nsew')
+        frm_ratio.grid(row=0, column=0, padx=5)
+        frm_pid.grid(row=0, column=1, padx=5)
+        frm_ratio.config(width=282, height=88)
+        frm_ratio.grid_propagate(False)
 
 
         # setting up buttons frm_cam
@@ -125,11 +131,8 @@ class feedbacker(object):
         self.ent_cam_gain.grid(row=2, column=1, padx=(0,10))
 
         # setting up buttons frm_bot
-        lbl_phi.grid(row=0, column=0, sticky='e', padx=(10, 0), pady=5)
-        self.ent_flat.grid(row=0, column=1, sticky='w', padx=(0, 10))
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
         but_feedback.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
-        frm_pid.grid(row=5, column=0)
 
         #setting up frm_pid
         lbl_pidp.grid(row=0, column=0)
@@ -137,9 +140,9 @@ class feedbacker(object):
         self.ent_pidp.grid(row=0, column=1)
         self.ent_pidi.grid(row=1, column=1)
         but_pid_setp.grid(row=2, column=0)
-        but_pid_enbl.grid(row=2, column=2)
         but_pid_setk.grid(row=2, column=1)
-        but_pid_stop.grid(row=2, column=3)
+        but_pid_enbl.grid(row=0, column=2)
+        but_pid_stop.grid(row=1, column=2)
 
         # setting up cam image
         self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
@@ -147,28 +150,30 @@ class feedbacker(object):
         self.img_canvas.configure(bg='grey')
         self.image = self.img_canvas.create_image(0, 0, anchor="nw")
 
-        #setting up frm_mid
+        #setting up frm_plt
         self.figr = Figure(figsize=(5, 2), dpi=100)
         self.ax1r = self.figr.add_subplot(211)
         self.ax2r = self.figr.add_subplot(212)
-        self.img1r = FigureCanvasTkAgg(self.figr, frm_mid)
+        self.img1r = FigureCanvasTkAgg(self.figr, frm_plt)
         self.tk_widget_figr = self.img1r.get_tk_widget()
         self.tk_widget_figr.grid(row=0, column=0, sticky='nsew')
         self.figp = Figure(figsize=(5, 2), dpi=100)
         self.ax1p = self.figp.add_subplot(111)
-        self.img1p = FigureCanvasTkAgg(self.figp, frm_mid)
+        self.img1p = FigureCanvasTkAgg(self.figp, frm_plt)
         self.tk_widget_figp = self.img1p.get_tk_widget()
         self.tk_widget_figp.grid(row=1, column=0, sticky='nsew')
-        frm_ratio.grid(row=2, column=0, sticky='nsew')
 
         #setting up frm_ratio
-        lbl_indexfft.grid(row=0, column=0)
-        lbl_angle.grid(row=1, column=0)
-        self.ent_indexfft.grid(row=0, column=1)
-        self.lbl_angle.grid(row=1, column=1)
-        self.ent_area1x.grid(row=3, column=0)
-        self.ent_area1y.grid(row=3, column=1)
-        self.cbox_area.grid(row=3, column=2)
+        self.ent_area1x.grid(row=0, column=0)
+        self.ent_area1y.grid(row=0, column=1)
+        self.cbox_area.grid(row=0, column=2)
+        lbl_indexfft.grid(row=1, column=0, sticky='e')
+        self.ent_indexfft.grid(row=1, column=1)
+        lbl_angle.grid(row=1, column=2)
+        self.lbl_angle.grid(row=1, column=3)
+        lbl_phi.grid(row=2, column=0, sticky='e')
+        self.ent_flat.grid(row=2, column=1)
+        lbl_phi_2.grid(row=2, column=2, sticky='w')
 
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
