@@ -25,6 +25,7 @@ class feedbacker(object):
         self.win.protocol("WM_DELETE_WINDOW", self.on_close)
         if not SANTEC_SLM:
             self.win.geometry('500x950+300+100')
+        self.rect_id = 0
 
         # creating frames
         frm_cam = tk.Frame(self.win)
@@ -277,15 +278,18 @@ class feedbacker(object):
 
             # # sum to area1
             try:
-                xpoints1 = np.fromstring(self.ent_area1x.get(), sep=',')
-                ypoints1 = np.fromstring(self.ent_area1y.get(), sep=',')
+                xpoints = np.fromstring(self.ent_area1x.get(), sep=',')
+                ypoints = np.fromstring(self.ent_area1y.get(), sep=',')
             except:
-                xpoints1 = [200, 550]
-                ypoints1 = [470, 480]
-
+                xpoints = [200, 550]
+                ypoints = [470, 480]
+            if xpoints[1] < xpoints[0]:
+                xpoints[1] = xpoints[0]+2
+            if ypoints[1] < ypoints[0]:
+                ypoints[1] = ypoints[0]+2
 
             #trying spatial phase extraction
-            im_ = numpy_image[int(ypoints1[0]):int(ypoints1[1]),int(xpoints1[0]):int(xpoints1[1])]
+            im_ = numpy_image[int(ypoints[0]):int(ypoints[1]),int(xpoints[0]):int(xpoints[1])]
             self.im_sum = np.sum(im_, axis=0)
 
             im_fft = np.fft.fft(self.im_sum)
@@ -295,7 +299,7 @@ class feedbacker(object):
                 self.im_angl = np.angle(im_fft[ind])
             except:
                 self.im_angl = 0
-            self.lbl_angle.config(text=np.round(self.im_angl, 8))
+            self.lbl_angle.config(text=np.round(self.im_angl, 6))
 
             # Show images
             picture = Image.fromarray(numpy_image)
@@ -307,9 +311,13 @@ class feedbacker(object):
             
             # Draw selection lines
             if self.intvar_area.get() == 1:
-                x1, x2 = xpoints1 * 500 / 1440
-                y1, y2 = ypoints1 * 350 / 1080
-                self.img_canvas.create_rectangle(x1, y1, x2, y2, outline='orange')
+                x1, x2 = xpoints * 500 / 1440
+                y1, y2 = ypoints * 350 / 1080
+                new_rect_id = self.img_canvas.create_rectangle(x1, y1, x2, y2, outline='orange')
+                self.img_canvas.delete(self.rect_id)
+                self.rect_id = new_rect_id
+            else:
+                self.img_canvas.delete(self.rect_id) 
 
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
