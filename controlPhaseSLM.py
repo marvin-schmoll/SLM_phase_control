@@ -116,7 +116,7 @@ class main_screen(object):
 
     def open_fbck(self):
         if self.fbck_win is None:
-            self.fbck_win = feedbacker.feedbacker(self)
+            self.fbck_win = feedbacker.feedbacker(self, slm)
 
     def open_prev(self):
         if self.prev_win is not None:

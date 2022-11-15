@@ -19,8 +19,9 @@ from pynput import keyboard
 class feedbacker(object):
     """works back and forth with publish_window"""
 
-    def __init__(self, parent):
+    def __init__(self, parent, slm_lib):
         self.parent = parent
+        self.slm_lib = slm_lib
         self.win = tk.Toplevel()
         self.win.protocol("WM_DELETE_WINDOW", self.on_close)
         if not SANTEC_SLM:
@@ -47,6 +48,7 @@ class feedbacker(object):
         lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
         lbl_phi_2 = tk.Label(frm_ratio, text='pi')
         vcmd = (self.win.register(self.callback))
+        #TODO: why is this an entry - should I be allowed to change this?
         self.strvar_flat = tk.StringVar()
         self.ent_flat = tk.Entry(
             frm_ratio, width=11,  validate='all',
@@ -70,18 +72,24 @@ class feedbacker(object):
             frm_cam_but_set, width=11,  validate='all',
             validatecommand=(vcmd, '%d', '%P', '%S'),
             textvariable=self.strvar_cam_gain)
-        self.strvar_indexfft = tk.StringVar(self.win,'8')
+        if SANTEC_SLM: text='4'
+        else: text='8'
+        self.strvar_indexfft = tk.StringVar(self.win,text)
         lbl_indexfft = tk.Label(frm_ratio, text='Index fft:')
         lbl_angle = tk.Label(frm_ratio, text='Phase:')
         self.ent_indexfft = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_indexfft)
         self.lbl_angle = tk.Label(frm_ratio, text='angle')
-        self.strvar_area1x = tk.StringVar(self.win,'255, 420')
+        if SANTEC_SLM: text='400, 1050'
+        else: text='255, 420'
+        self.strvar_area1x = tk.StringVar(self.win,text)
         self.ent_area1x = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1x)
-        self.strvar_area1y = tk.StringVar(self.win,'470, 480')
+        if SANTEC_SLM: text='630, 650'
+        else: text='470, 480'
+        self.strvar_area1y = tk.StringVar(self.win,text)
         self.ent_area1y = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1y)
@@ -187,11 +195,12 @@ class feedbacker(object):
         l.start()
 
     def press_callback(self, key):
-
+        #TODO: does this work? I dont think so 
         if key == keyboard.Key.esc:
             self.stop_cam = 1
         return
 
+    #TODO: redundancy
     def callback(self, action, P, text):
         # action=1 -> insert
         if(action == '1'):
@@ -213,8 +222,8 @@ class feedbacker(object):
             phi = 0
         phase_map = self.parent.phase_map + phi/2*bit_depth
         if SANTEC_SLM:
-            self.parent.slm.SLM_Disp_Open(int(self.ent_scr.get()))
-            self.parent.slm.SLM_Disp_Data(int(self.ent_scr.get()), phase_map,
+            self.slm_lib.SLM_Disp_Open(int(self.parent.ent_scr.get()))
+            self.slm_lib.SLM_Disp_Data(int(self.parent.ent_scr.get()), phase_map,
                                           slm_size[1], slm_size[0])
         else:
             self.parent.pub_win.publish_img(phase_map)
@@ -277,12 +286,18 @@ class feedbacker(object):
                 continue
 
             # # sum to area1
+            #TODO: change this so that program does not crash if no comma detected
+            #       add Dlab default values -> whiteboard (is this for settings file?)
             try:
                 xpoints = np.fromstring(self.ent_area1x.get(), sep=',')
                 ypoints = np.fromstring(self.ent_area1y.get(), sep=',')
             except:
-                xpoints = [200, 550]
-                ypoints = [470, 480]
+                if SANTEC_SLM:
+                    xpoints = [400, 1050]
+                    ypoints = [630, 650]
+                else:
+                    xpoints = [200, 550]
+                    ypoints = [470, 480]
             if xpoints[1] < xpoints[0]:
                 xpoints[1] = xpoints[0]+2
             if ypoints[1] < ypoints[0]:
@@ -290,7 +305,8 @@ class feedbacker(object):
 
             #trying spatial phase extraction
             im_ = numpy_image[int(ypoints[0]):int(ypoints[1]),int(xpoints[0]):int(xpoints[1])]
-            self.im_sum = np.sum(im_, axis=0)
+            #TODO: dynamic vertical/horizontal selection axis=0-horizontal axis=1-vertical
+            self.im_sum = np.sum(im_, axis=1)
 
             im_fft = np.fft.fft(self.im_sum)
             self.abs_im_fft = np.abs(im_fft)
@@ -330,6 +346,7 @@ class feedbacker(object):
 
 
     def cam_on_close(self, device):
+        #TODO: somehow this does not work -> check to reopen in DahengGalaxyView
         device.stream_off()   # stop acquisition
         device.close_device()   # close device
 
@@ -370,18 +387,27 @@ class feedbacker(object):
     def set_area1(self):
         poly_1 = draw_polygon.draw_polygon(self.ax1, self.fig)
         print(poly_1)
-
+    
+    #TODO: fix names; check in documentation, possibly add another entry 
     def set_setpoint(self):
-        self.pid.setpoint = self.ent_pidp.get()
+        self.pid.setpoint = float(self.ent_pidp.get())
 
     def set_pid_val(self):
-        self.pid.Ki = self.ent_pidi.get()
-
+        self.pid.Kp = float(self.ent_pidp.get())
+        self.pid.Ki = float(self.ent_pidi.get())
+        print(self.pid.tunings)
+    #TODO end
+    
+    #TODO: this function should automatically call the two above once they are fixed
     def pid_strt(self):
         while True:
+            #TODO: the next line throws a wierd error
+            #       this seems to be related to the setpoint not being set as float64 as it should
+            #       may be related to previous fix in set_setpoint -> do this one first
             correction = self.pid(self.im_angl)
             self.strvar_flat.set(correction)
             self.feedback()
+            print(self.pid.components)
             global stop_pid
             if stop_pid:
                 break
@@ -390,6 +416,7 @@ class feedbacker(object):
         #setting up a listener for new im_phase
         global stop_pid
         stop_pid = False
+        #TODO: maybe we should not have infinite threads
         self.pid_thread = threading.Thread(target=self.pid_strt)
         self.pid_thread.daemon = True
         self.pid_thread.start()
