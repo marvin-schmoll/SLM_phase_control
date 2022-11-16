@@ -47,8 +47,7 @@ class feedbacker(object):
         but_cam_phi = tk.Button(frm_cam_but, text='Scan 2pi', command=self.fast_scan)
         lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
         lbl_phi_2 = tk.Label(frm_ratio, text='pi')
-        vcmd = (self.win.register(self.callback))
-        #TODO: why is this an entry - should I be allowed to change this?
+        vcmd = (self.win.register(self.parent.callback))
         self.strvar_flat = tk.StringVar()
         self.ent_flat = tk.Entry(
             frm_ratio, width=11,  validate='all',
@@ -97,13 +96,23 @@ class feedbacker(object):
         self.cbox_area = tk.Checkbutton(frm_ratio, text='view area',
                            variable=self.intvar_area,
                            onvalue=1, offvalue=0)
+        lbl_direction = tk.Label(frm_ratio, text='Integration direction:')
+        self.cbx_dir = tk.ttk.Combobox(frm_ratio, width=10,
+                                       values=['horizontal', 'vertical'])
+        self.cbx_dir.current(0)
+        lbl_setp = tk.Label(frm_pid, text='Setpoint:')
+        self.strvar_setp = tk.StringVar(self.win,'0')
+        self.ent_setp = tk.Entry(
+            frm_pid, width=11,  validate='all',
+            validatecommand=(vcmd, '%d', '%P', '%S'),
+            textvariable=self.strvar_setp)
         lbl_pidp = tk.Label(frm_pid, text='P-value:')
         self.strvar_pidp = tk.StringVar(self.win,'1')
         self.ent_pidp = tk.Entry(
             frm_pid, width=11,  validate='all',
             validatecommand=(vcmd, '%d', '%P', '%S'),
             textvariable=self.strvar_pidp)
-        lbl_pidi = tk.Label(frm_pid, text='i-value:')
+        lbl_pidi = tk.Label(frm_pid, text='I-value:')
         self.strvar_pidi = tk.StringVar(self.win,'0')
         self.ent_pidi = tk.Entry(
             frm_pid, width=11,  validate='all',
@@ -123,7 +132,7 @@ class feedbacker(object):
         frm_cam_but.grid(row=1, column=0, sticky='nsew')
         frm_ratio.grid(row=0, column=0, padx=5)
         frm_pid.grid(row=0, column=1, padx=5)
-        frm_ratio.config(width=282, height=88)
+        frm_ratio.config(width=282, height=108)
         frm_ratio.grid_propagate(False)
 
 
@@ -144,14 +153,16 @@ class feedbacker(object):
         but_feedback.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
 
         #setting up frm_pid
-        lbl_pidp.grid(row=0, column=0)
-        lbl_pidi.grid(row=1, column=0)
-        self.ent_pidp.grid(row=0, column=1)
-        self.ent_pidi.grid(row=1, column=1)
-        but_pid_setp.grid(row=2, column=0)
-        but_pid_setk.grid(row=2, column=1)
-        but_pid_enbl.grid(row=0, column=2)
-        but_pid_stop.grid(row=1, column=2)
+        lbl_setp.grid(row=0, column=0)
+        lbl_pidp.grid(row=1, column=0)
+        lbl_pidi.grid(row=2, column=0)
+        self.ent_setp.grid(row=0, column=1)
+        self.ent_pidp.grid(row=1, column=1)
+        self.ent_pidi.grid(row=2, column=1)
+        but_pid_setp.grid(row=3, column=0)
+        but_pid_setk.grid(row=3, column=1)
+        but_pid_enbl.grid(row=1, column=2)
+        but_pid_stop.grid(row=2, column=2)
 
         # setting up cam image
         self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
@@ -176,13 +187,15 @@ class feedbacker(object):
         self.ent_area1x.grid(row=0, column=0)
         self.ent_area1y.grid(row=0, column=1)
         self.cbox_area.grid(row=0, column=2)
-        lbl_indexfft.grid(row=1, column=0, sticky='e')
-        self.ent_indexfft.grid(row=1, column=1)
-        lbl_angle.grid(row=1, column=2)
-        self.lbl_angle.grid(row=1, column=3)
-        lbl_phi.grid(row=2, column=0, sticky='e')
-        self.ent_flat.grid(row=2, column=1)
-        lbl_phi_2.grid(row=2, column=2, sticky='w')
+        lbl_direction.grid(row=1, column=0, columnspan=2)
+        self.cbx_dir.grid(row=1, column=2, columnspan=2, sticky='w')
+        lbl_indexfft.grid(row=2, column=0, sticky='e')
+        self.ent_indexfft.grid(row=2, column=1)
+        lbl_angle.grid(row=2, column=2)
+        self.lbl_angle.grid(row=2, column=3)
+        lbl_phi.grid(row=3, column=0, sticky='e')
+        self.ent_flat.grid(row=3, column=1)
+        lbl_phi_2.grid(row=3, column=2, sticky='w')
 
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
@@ -199,21 +212,6 @@ class feedbacker(object):
         if key == keyboard.Key.esc:
             self.stop_cam = 1
         return
-
-    #TODO: redundancy
-    def callback(self, action, P, text):
-        # action=1 -> insert
-        if(action == '1'):
-            if text in '0123456789.-+':
-                try:
-                    float(P)
-                    return True
-                except ValueError:
-                    return False
-            else:
-                return False
-        else:
-            return True
 
     def feedback(self):
         if self.ent_flat.get() != '':
@@ -305,8 +303,10 @@ class feedbacker(object):
 
             #trying spatial phase extraction
             im_ = numpy_image[int(ypoints[0]):int(ypoints[1]),int(xpoints[0]):int(xpoints[1])]
-            #TODO: dynamic vertical/horizontal selection axis=0-horizontal axis=1-vertical
-            self.im_sum = np.sum(im_, axis=1)
+            if self.cbx_dir.get() == 'horizontal':
+                self.im_sum = np.sum(im_, axis=0)
+            else:
+                self.im_sum = np.sum(im_, axis=1)
 
             im_fft = np.fft.fft(self.im_sum)
             self.abs_im_fft = np.abs(im_fft)
@@ -388,26 +388,23 @@ class feedbacker(object):
         poly_1 = draw_polygon.draw_polygon(self.ax1, self.fig)
         print(poly_1)
     
-    #TODO: fix names; check in documentation, possibly add another entry 
     def set_setpoint(self):
-        self.pid.setpoint = float(self.ent_pidp.get())
+        self.pid.setpoint = float(self.ent_setp.get())
 
     def set_pid_val(self):
         self.pid.Kp = float(self.ent_pidp.get())
         self.pid.Ki = float(self.ent_pidi.get())
         print(self.pid.tunings)
-    #TODO end
     
-    #TODO: this function should automatically call the two above once they are fixed
     def pid_strt(self):
+        self.set_setpoint()
+        self.set_pid_val()
+        
         while True:
-            #TODO: the next line throws a wierd error
-            #       this seems to be related to the setpoint not being set as float64 as it should
-            #       may be related to previous fix in set_setpoint -> do this one first
             correction = self.pid(self.im_angl)
             self.strvar_flat.set(correction)
             self.feedback()
-            print(self.pid.components)
+            #print(self.pid.components)
             global stop_pid
             if stop_pid:
                 break
@@ -416,7 +413,6 @@ class feedbacker(object):
         #setting up a listener for new im_phase
         global stop_pid
         stop_pid = False
-        #TODO: maybe we should not have infinite threads
         self.pid_thread = threading.Thread(target=self.pid_strt)
         self.pid_thread.daemon = True
         self.pid_thread.start()
