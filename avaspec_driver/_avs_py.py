@@ -27,7 +27,11 @@ def AVS_Status(avs_status):
                     -30: "ERR_UNEXPECTED_MEAS_RESPONSE",
                     -100: "ERR_INVALID_PARAMETER_NR_PIXEL",
                     -101: "ERR_INVALID_PARAMETER_ADC_GAIN",
-                    -102: "ERR_INVALID_PARAMETER_ADC_OFFSET"}
+                    -102: "ERR_INVALID_PARAMETER_ADC_OFFSET",
+                    -110: "ERR_INVALID_MEASPARAM_AVG_SAT2",
+                    -111: "ERR_INVALID_MEASPARAM_AVG_RAM",
+                    -112: "ERR_INVALID_MEASPARAM_SYNC_RAM",
+                    -112: "ERR_INVALID_MEASPARAM_LEVEL_RAM"}
     
     if avs_status == 0:   # ERR_SUCCESS
         return
@@ -285,7 +289,6 @@ def AVS_PrepareMeasure(handle, config=None):
     Returns
     -------
     None.
-
     '''
     
     if config is None:
@@ -298,7 +301,7 @@ def AVS_PrepareMeasure(handle, config=None):
 
 
 
-def AVS_Measure(handle, nummeas=1, windowhandle=0):
+def AVS_Measure(handle, nummeas=-1, windowhandle=0):
     '''
     Starts measurement on the spectrometer.
 
@@ -309,20 +312,42 @@ def AVS_Measure(handle, nummeas=1, windowhandle=0):
     nummeas : int
             number of measurements to do. 
             -1 is infinite, -2 is used to start Dynamic StoreToRam.
+            Default is continuos acquisition.
     windowhandle : TYPE
         Window handle to notify application measurement result
         data is available. The library sends a Windows message to the window with 
         command WM_MEAS_READY, with SUCCESS, the number of scans that were saved in
         RAM (if enabled), or INVALID_MEAS_DATA as WPARM value and handle as LPARM 
-        value. 0 to disable.
+        value. 
+        0 to disable, which is default.
 
     Returns
     -------
     None.
-
     '''
     
     ret = dll.AVS_Measure(handle, windowhandle, nummeas)
+    AVS_Status(ret)
+    
+    return
+
+
+
+def AVS_StopMeasure(handle):
+    '''
+    Stops a running measurement.
+
+    Parameters
+    ----------
+    handle : int
+        the AvsHandle of the spectrometer
+
+    Returns
+    -------
+    None.
+    '''    
+
+    ret = dll.AVS_StopMeasure(handle)
     AVS_Status(ret)
     
     return
@@ -376,6 +401,29 @@ def AVS_GetScopeData(handle):
 
 
 
+def AVS_GetSaturatedPixels(handle):
+    '''
+    Returns the saturation values of the last performed measurement. Should be 
+    called after AVS_GetScopeData. 
+    
+    Parameters
+    ----------
+    handle : int
+        the AvsHandle of the spectrometer
+
+    Returns
+    -------
+    np.array
+        Array of bool indicating if pixels are saturated.
+    '''
+
+    saturated = AVS_GetSaturatedPixels(handle)
+    pixels = AVS_GetParameter(handle)['Detector_NrPixels']
+    
+    return np.array(saturated[:pixels], dtype=bool)
+
+
+
 
 
 def acquire_single_spectrum(handle, config=None):
@@ -402,7 +450,7 @@ def acquire_single_spectrum(handle, config=None):
     '''
     
     AVS_PrepareMeasure(handle, config)
-    AVS_Measure(handle, nummeas= 1, windowhandle=0)
+    AVS_Measure(handle, nummeas=1, windowhandle=0)
     dataready = False
     while dataready == False:
         tm.sleep(0.001)

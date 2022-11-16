@@ -2,7 +2,6 @@ import sys
 import inspect
 import ctypes
 import struct
-from PyQt5.QtCore import *
 
 AVS_SERIAL_LEN = 10
 VERSION_LEN = 16
