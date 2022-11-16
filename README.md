@@ -14,6 +14,8 @@ These can be found and changed in the file "settings.py".
 
 "santec_driver" contains drivers to communicate with the Santec-SLMs.
 
+"avaspec_driver" contains drivers to communicate with the Aventes Spectrometer.
+
 "gxipy" contains drivers to communicate with the Daheng camera.
 
 
@@ -24,4 +26,5 @@ Can now generate Hologram phase patterns with the Gerchberg-Saxton-algorithm.
 
 ### Updates
 
-Work on a feedback algorithm for delay stabilization.
+- Work on a feedback algorithm for delay stabilization.
+- Implementation of a spectrometer.
