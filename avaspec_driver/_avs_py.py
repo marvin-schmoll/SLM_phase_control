@@ -30,13 +30,13 @@ def AVS_Status(avs_status):
  
  
  
-def MeasConfig_DeafaultValues(handle):
+def MeasConfig_DefaultValues(handle):
     """Function to return an initialized version of the MeasConfigType.
         Can be modiefied but also passed on directly."""
         
     measconfig = dll.MeasConfigType()
     
-    pixels = dll.AVS_GetParameter(handle).m_Detector_m_NrPixels
+    pixels = AVS_GetParameter(handle)['Detector_NrPixels']
     measconfig.m_StartPixel = 0
     measconfig.m_StopPixel = pixels - 1
     
@@ -59,6 +59,7 @@ def MeasConfig_DeafaultValues(handle):
     measconfig.m_Control_m_StoreToRam = 0
     
     return measconfig
+
 
 
 
@@ -96,10 +97,15 @@ def AVS_Init(port = 'USB'):
 
 
 def AVS_Done():
-    """
+    '''
     Closes the communication and releases internal storage.
-    """
 
+    Returns
+    -------
+    None.
+
+    ''' 
+    
     ret = dll.AVS_Done()
     AVS_Status(ret)
     
@@ -108,20 +114,16 @@ def AVS_Done():
 
 
 def AVS_UpdateUSBDevices():
-    """
+    '''
     Internally checks the list of connected USB devices and returns the number 
     of devices attached. If AVS_Init() was called with port='both', the return 
     value also includes the number of ETH devices.
-    
-     Parameters
-    ----------
-    None.
 
     Returns
     -------
     int
         Number of devices found.    
-    """
+    '''
     
     ret = dll.AVS_UpdateUSBDevices()
     
@@ -137,7 +139,7 @@ def AVS_UpdateUSBDevices():
 
 
 def AVS_GetList():
-    """
+    '''
     Returns device information for each spectrometer connected to the ports
     indicated at AVS_Init(). Wrapper function has been modified to 
     automatically update to correct listsize.
@@ -151,11 +153,90 @@ def AVS_GetList():
     tuple
         Tuple containing AvsIdentityType for each found device. Devices 
         are sorted by UserFriendlyName   
-    """   
+    '''   
     
     spec_list = dll.AVS_GetList()
     
     return spec_list
+
+
+
+def AVS_Activate(deviceId):
+    '''
+    Activates spectrometer for communication
+    
+    Parameters
+    ----------
+    AvsIdentityType
+        Device identifier.
+
+    Returns
+    -------
+    int
+        AvsHandle, handle to be used in subsequent function calls
+    '''
+    
+    ret = dll.AVS_Activate(deviceId)
+    return ret
+
+
+
+def AVS_Deactivate(handle):
+    '''
+    Activates spectrometer for communication
+    
+    Parameters
+    ----------
+    int
+        Device handle.
+
+    Returns
+    -------
+    None.
+    '''
+    
+    ret = dll.AVS_Deactivate(handle)
+    
+    if ret is False:
+        raise ValueError('Invalid device handle.')
+    
+    return ret 
+
+
+
+def AVS_GetParameter(handle):
+    '''
+    Returns the device information of the spectrometer..
+
+    Parameters
+    ----------
+    handle : int
+        the AvsHandle of the spectrometer
+
+    Returns
+    -------
+    dict
+        Dictionary containing spectrometer configuration data 
+        converted to native python types.
+    '''
+    
+    structure = dll.AVS_GetParameter(handle)
+    
+    dictionary = {}
+    for (name, dtype) in structure._fields_:
+        newname = name.replace('m_', '')
+        newname = newname.replace('_1', '1')
+        newname = newname.replace('_2', '1')
+        newname = newname.replace('_3', '1')
+        content = structure.__getattribute__(name)
+        if type(content) not in [int, float, bool, bytes]:
+            content = np.array(content)
+        dictionary[newname] = content
+    
+    if dictionary['Len'] == 0:
+        raise RuntimeError('Could not read spectrometer parameters.')
+    
+    return dictionary
 
 
 
@@ -174,10 +255,38 @@ def AVS_GetLambda(handle):
         Array of wavelength values for pixels (in nm).
     '''
     
-    pixels = dll.AVS_GetParameter(handle).m_Detector_m_NrPixels
+    pixels = AVS_GetParameter(handle)['Detector_NrPixels']
     wavelengths = np.array(dll.AVS_GetLambda(handle))
     
     return wavelengths[:pixels]
+
+
+
+def AVS_PrepareMeasure(handle, config=None):
+    '''
+    Prepares measurement on the spectrometer using the specificed configuration.
+
+    Parameters
+    ----------
+    handle : int
+        the AvsHandle of the spectrometer
+    config : MeasConfigType, optional
+        Measurement Configuration. 
+        Defaults to MeasConfig_DefaultValues.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    if config is None:
+        config = MeasConfig_DefaultValues(handle)
+    
+    ret = dll.AVS_PrepareMeasure(handle, config)
+    AVS_Status(ret)
+    
+    return
 
 
 
