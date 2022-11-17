@@ -7,6 +7,7 @@ import numpy as np
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 import json
 import os
+import questionbox
 import phase_settings
 import preview_window
 if SANTEC_SLM: import santec_driver._slm_py as slm
@@ -116,7 +117,17 @@ class main_screen(object):
 
     def open_fbck(self):
         if self.fbck_win is None:
-            self.fbck_win = feedbacker.feedbacker(self, slm)
+            q_str1 = 'The feedbacker needs to look at fringes between the two beams.'
+            q_str2 = 'Do you want to use a camera with spatial fringes or a spectrometer with spectral fringes?'
+            q_str = q_str1 + '\n' + q_str2
+            questionbox.popup_question(self.open_feedback_window, 'Choose feedback method', 
+                                       q_str, 'Open Camera', 'Open Spectrometer')
+       
+    def open_feedback_window(self, answer):
+        if SANTEC_SLM:
+            self.fbck_win = feedbacker.feedbacker(self, slm, answer)
+        else:
+            self.fbck_win = feedbacker.feedbacker(self, None, answer)
 
     def open_prev(self):
         if self.prev_win is not None:

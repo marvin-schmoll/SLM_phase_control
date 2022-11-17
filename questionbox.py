@@ -1,13 +1,19 @@
 import tkinter as tk
 from tkinter import ttk
 
-def popup_question(title, question, answer_true='Yes', answer_false='No'):
+
+
+class popup_question():
     '''
-    Simple popup box to ask a question and return back the answer.
+    Simple popup box to ask a question with two possible answers.
     Two possible answers can be specified.
+    Once the popup is closed, callback is called with the answer as paramteter.
 
     Parameters
     ----------
+    callback: function with one input parameter
+        Called if any answer is chosen.
+        True if left button is pressed, False if right button is pressed.
     title : str
         Title of the popup window.
     question : str
@@ -19,41 +25,30 @@ def popup_question(title, question, answer_true='Yes', answer_false='No'):
         Caption of the left button.
         The method returns True if this button is pressed.
 
-    Returns
-    -------
-    answer : bool or NoneType
-        True if left button is pressed, False if right button is pressed.
-        None if the window is exited otherwise.
-
     '''
     
-    window = _popup_window(title, question, answer_true, answer_false)
-    answer = window.answer
-    return answer
-    
-    
-
-class _popup_window():
-    
         
-    def __init__(self, title, question, answer_true, answer_false):
-        self.popup = tk.Tk()
-        self.popup.wm_title(title)
+    def __init__(self, callback, title, question, answer_true, answer_false):
+        self.popup = tk.Toplevel()
+        self.popup.title(title)
+        self.popup.protocol("WM_DELETE_WINDOW", self.true_pressed)
+        self.callback = callback
         self.answer = None
-        label = ttk.Label(self.popup, text=question)
+        label = ttk.Label(self.popup, text=question, width=60, wraplength=340)
         label.pack(side="top", fill="x", pady=10)
-        B1 = ttk.Button(self.popup, text=answer_true, command = self.true_pressed)
+        B1 = ttk.Button(self.popup, text=answer_true, command=self.true_pressed)
         B1.pack(side="left", padx=10, pady=10)
-        B2 = ttk.Button(self.popup, text=answer_false, command = self.false_pressed)
+        B2 = ttk.Button(self.popup, text=answer_false, command=self.false_pressed)
         B2.pack(side="right", padx=10, pady=10)
         self.popup.mainloop()    
     
     def true_pressed(self):
         self.popup.destroy()
-        self.answer = True
+        self.callback(True)
         
     def false_pressed(self):
         self.popup.destroy()
-        self.answer = False
+        self.callback(False)
     
-print(popup_question('aaaaaaaaaaaaaaaaaaaaaaa', 'b', 'c', 'd'))
+    def cancelled(self):
+        self.popup.destroy()

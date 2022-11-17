@@ -19,7 +19,7 @@ from pynput import keyboard
 class feedbacker(object):
     """works back and forth with publish_window"""
 
-    def __init__(self, parent, slm_lib):
+    def __init__(self, parent, slm_lib, CAMERA):
         self.parent = parent
         self.slm_lib = slm_lib
         self.win = tk.Toplevel()
