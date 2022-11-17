@@ -34,7 +34,15 @@ def AVS_Status(avs_status):
                     -113: "ERR_INVALID_MEASPARAM_LEVEL_RAM",
                     -114: "ERR_INVALID_MEASPARAM_SAT2_RAM",
                     -115: "ERR_INVALID_MEASPARAM_FWVER_RAM",
-                    -116: "ERR_INVALID_MEASPARAM_DYNDARK"}
+                    -116: "ERR_INVALID_MEASPARAM_DYNDARK",
+                    -120: "ERR_NOT_SUPPORTED_BY_SENSOR_TYPE",
+                    -121: "ERR_NOT_SUPPORTED_BY_FW_VER",
+                    -122: "ERR_NOT_SUPPORTED_BY_FPGA_VER",
+                    -140: "ERR_SL_CALIBRATION_NOT_AVAILABLE",
+                    -141: "ERR_SL_STARTPIXEL_NOT_IN_RANGE",
+                    -142: "ERR_SL_ENDPIXEL_NOT_IN_RANGE",
+                    -143: "ERR_SL_STARTPIX_GT_ENDPIX",
+                    -144: "ERR_SL_MFACTOR_OUT_OF_RANGE"}
     
     if avs_status == 0:   # ERR_SUCCESS
         return

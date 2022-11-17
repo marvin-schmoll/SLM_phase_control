@@ -36,10 +36,12 @@ class popup_question():
         self.answer = None
         label = ttk.Label(self.popup, text=question, width=60, wraplength=340)
         label.pack(side="top", fill="x", pady=10)
-        B1 = ttk.Button(self.popup, text=answer_true, command=self.true_pressed)
-        B1.pack(side="left", padx=10, pady=10)
-        B2 = ttk.Button(self.popup, text=answer_false, command=self.false_pressed)
-        B2.pack(side="right", padx=10, pady=10)
+        BT = ttk.Button(self.popup, text=answer_true, command=self.true_pressed)
+        BT.pack(side="left", padx=10, pady=10)
+        BC = ttk.Button(self.popup, text='Cancel', command=self.cancelled)
+        BC.pack(side="right", padx=10, pady=10)
+        BF = ttk.Button(self.popup, text=answer_false, command=self.false_pressed)
+        BF.pack(side="bottom", padx=10, pady=10)
         self.popup.mainloop()    
     
     def true_pressed(self):

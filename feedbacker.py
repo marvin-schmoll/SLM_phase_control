@@ -80,25 +80,25 @@ class feedbacker(object):
             lbl_spc_ind = tk.Label(frm_spc_but_set, text='Spectrometer index:')
             self.strvar_spc_ind = tk.StringVar(self.win,'1')
             self.ent_spc_ind = tk.Entry(
-                frm_spc_but_set, width=11,  validate='all',
+                frm_spc_but_set, width=9,  validate='all',
                 validatecommand=(vcmd, '%d', '%P', '%S'),
                 textvariable=self.strvar_spc_ind)
             lbl_spc_exp = tk.Label(frm_spc_but_set, text='Exposure time (ms):')
             self.strvar_spc_exp = tk.StringVar(self.win,'50')
             self.ent_spc_exp = tk.Entry(
-                frm_spc_but_set, width=11,  validate='all',
+                frm_spc_but_set, width=9,  validate='all',
                 validatecommand=(vcmd, '%d', '%P', '%S'),
                 textvariable=self.strvar_spc_exp)
             lbl_spc_gain = tk.Label(frm_spc_but_set, text='Nr. of averages:')
             self.strvar_spc_avg = tk.StringVar(self.win,'1')
             self.ent_spc_avg = tk.Entry(
-                frm_spc_but_set, width=11,  validate='all',
+                frm_spc_but_set, width=9,  validate='all',
                 validatecommand=(vcmd, '%d', '%P', '%S'),
                 textvariable=self.strvar_spc_avg)
             but_spc_activate = tk.Button(frm_spc_but_set, text='Activate',
-                                    command=self.spec_activate, height=1)
+                                    command=self.spec_activate, width=8)
             but_spc_deactivate = tk.Button(frm_spc_but_set, text='Deactivate',
-                                    command=self.spec_deactivate, height=1)
+                                    command=self.spec_deactivate, width=8)
             but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
                                       command=self.start_measure, height=2)
             but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
