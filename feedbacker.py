@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib import pyplot as plt
 import matplotlib
 matplotlib.use("TkAgg")
+import avaspec_driver._avs_py as avs
 import gxipy as gx
 from PIL import Image, ImageTk
 import time
@@ -94,8 +95,10 @@ class feedbacker(object):
                 frm_spc_but_set, width=11,  validate='all',
                 validatecommand=(vcmd, '%d', '%P', '%S'),
                 textvariable=self.strvar_spc_avg)
-            but_spc_ind = tk.Button(frm_spc_but_set, text='Get index',
-                                    command=self.get_spec_index, height=1)
+            but_spc_activate = tk.Button(frm_spc_but_set, text='Activate',
+                                    command=self.spec_activate, height=1)
+            but_spc_deactivate = tk.Button(frm_spc_but_set, text='Deactivate',
+                                    command=self.spec_deactivate, height=1)
             but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
                                       command=self.start_measure, height=2)
             but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
@@ -199,9 +202,10 @@ class feedbacker(object):
             but_spc_phi.grid(row=0, column=3, padx=5, pady=5, ipadx=5, ipady=5)
             lbl_spc_ind.grid(row=0, column=0)
             self.ent_spc_ind.grid(row=0, column=1)
-            but_spc_ind.grid(row=0, column=2, padx=(1,5))
+            but_spc_activate.grid(row=0, column=2, padx=(1,5))
             lbl_spc_exp.grid(row=1, column=0)
             self.ent_spc_exp.grid(row=1, column=1)
+            but_spc_deactivate.grid(row=1, column=2, padx=(1,5))
             lbl_spc_gain.grid(row=2, column=0)
             self.ent_spc_avg.grid(row=2, column=1)
 
@@ -209,7 +213,7 @@ class feedbacker(object):
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
         but_feedback.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
 
-        #setting up frm_pid
+        # setting up frm_pid
         lbl_setp.grid(row=0, column=0)
         lbl_pidp.grid(row=1, column=0)
         lbl_pidi.grid(row=2, column=0)
@@ -228,7 +232,7 @@ class feedbacker(object):
             self.img_canvas.configure(bg='grey')
             self.image = self.img_canvas.create_image(0, 0, anchor="nw")
 
-        #setting up frm_plt
+        # setting up frm_plt
         if self.CAMERA: sizefactor = 1
         else: sizefactor = 1.05
         self.figr = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
@@ -243,7 +247,7 @@ class feedbacker(object):
         self.tk_widget_figp = self.img1p.get_tk_widget()
         self.tk_widget_figp.grid(row=1, column=0, sticky='nsew')
 
-        #setting up frm_ratio
+        # setting up frm_ratio
         self.ent_area1x.grid(row=0, column=0)
         self.ent_area1y.grid(row=0, column=1)
         self.cbox_area.grid(row=0, column=2)
@@ -269,13 +273,17 @@ class feedbacker(object):
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
 
-        #setting up a listener for catchin esc from cam1
+        # setting up a listener for catchin esc from cam1
         if self.CAMERA:
             self.stop_cam = 0
             global stop_pid
             stop_pid = False
             l = keyboard.Listener(on_press=self.press_callback)
             l.start()
+        # class attributes to store spectrometer state
+        else:
+            self.spec_interface_initialized = False
+            self.active_spec_handle = None
 
     def press_callback(self, key):
         #TODO: does this work? I dont think so 
@@ -328,7 +336,7 @@ class feedbacker(object):
         # start data acquisition
         cam1.stream_on()
         self.acq_mono(cam1, 10000)
-        self.cam_on_close(cam1)
+        self.cam_on_close(cam1)  #TODO: move this to where it actually gets executed
 
     def acq_mono(self, device, num):
         """
@@ -447,14 +455,32 @@ class feedbacker(object):
         self.img1p.draw()
         self.win.after(500,self.plot_phase)
     
-    def get_spec_index(self):
-        pass
+    def spec_activate(self):
+        if not self.spec_interface_initialized:
+            avs.AVS_Init()
+        if self.active_spec_handle is None:
+            speclist = avs.AVS_GetList()
+            print(str(len(speclist)) + ' spectrometer(s) found.')
+            self.active_spec_handle = avs.AVS_Activate(speclist[0])
+            self.ent_spc_ind.config(state='disabled')
+
+    def spec_deactivate(self):
+        if self.active_spec_handle is not None:
+            avs.AVS_StopMeasure(self.active_spec_handle)
+            avs.AVS_Deactivate(self.active_spec_handle)
+            self.ent_spc_ind.config(state='normal')
+            self.active_spec_handle = None
     
     def start_measure(self):
-        pass
+        self.spec_activate()
+        int_time = float(self.ent_spc_exp.get())
+        no_avg = int(self.ent_spc_avg.get())
+        avs.set_measure_params(self.active_spec_handle, int_time, no_avg)
+        avs.AVS_Measure(self.active_spec_handle)
     
     def stop_measure(self):
-        pass
+        if self.active_spec_handle is not None:
+            avs.AVS_StopMeasure(self.active_spec_handle)
 
     def fast_scan(self):
         phis = np.linspace(0,2,60)
@@ -503,5 +529,10 @@ class feedbacker(object):
     def on_close(self):
         plt.close(self.figr)
         plt.close(self.figp)
+        if self.CAMERA:
+            None
+        else:
+            self.spec_deactivate()
+            avs.AVS_Done()
         self.win.destroy()
         self.parent.fbck_win = None

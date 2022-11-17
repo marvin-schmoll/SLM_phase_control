@@ -1,7 +1,5 @@
 import sys
-import inspect
 import ctypes
-import struct
 
 AVS_SERIAL_LEN = 10
 VERSION_LEN = 16
@@ -37,11 +35,11 @@ else: # Windows will have 'win32' or 'cygwin'
     import ctypes.wintypes
     if (ctypes.sizeof(ctypes.c_voidp) == 8): # 64 bit
         WM_MEAS_READY = 0x8001
-        lib = ctypes.WinDLL("./avaspecx64.dll")
+        lib = ctypes.WinDLL("./avaspec_driver/avaspecx64.dll")
         func = ctypes.WINFUNCTYPE
     else:
         WM_MEAS_READY = 0x0401
-        lib = ctypes.WinDLL("./avaspec.dll")
+        lib = ctypes.WinDLL("./avaspec_driver/avaspec.dll")
         func = ctypes.WINFUNCTYPE
 
 class AvsIdentityType(ctypes.Structure):

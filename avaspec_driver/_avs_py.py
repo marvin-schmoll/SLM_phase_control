@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #  This script is on fire!!! 
 
-import _avs_win as dll
+import avaspec_driver._avs_win as dll
 import numpy as np
 import time as tm
 
@@ -31,7 +31,10 @@ def AVS_Status(avs_status):
                     -110: "ERR_INVALID_MEASPARAM_AVG_SAT2",
                     -111: "ERR_INVALID_MEASPARAM_AVG_RAM",
                     -112: "ERR_INVALID_MEASPARAM_SYNC_RAM",
-                    -112: "ERR_INVALID_MEASPARAM_LEVEL_RAM"}
+                    -113: "ERR_INVALID_MEASPARAM_LEVEL_RAM",
+                    -114: "ERR_INVALID_MEASPARAM_SAT2_RAM",
+                    -115: "ERR_INVALID_MEASPARAM_FWVER_RAM",
+                    -116: "ERR_INVALID_MEASPARAM_DYNDARK"}
     
     if avs_status == 0:   # ERR_SUCCESS
         return
@@ -212,7 +215,7 @@ def AVS_Deactivate(handle):
     if ret is False:
         raise ValueError('Invalid device handle.')
     
-    return ret 
+    return
 
 
 
@@ -458,3 +461,66 @@ def acquire_single_spectrum(handle, config=None):
     
     timestamp, data = AVS_GetScopeData(handle)
     return timestamp/100000, data
+
+
+
+def set_measure_params(handle, time, avg=1, start_px=None, stop_px=None):
+    '''
+    Prepares measurement for spectrometer at given handle.
+    The most important parameters of the measurement can be directly fed
+    to the function.
+
+    Parameters
+    ----------
+    handle : int
+        AvsHandle of the spectrometer.
+    time : float
+        Integration time of the spectrometer in ms.
+    avg : int, optional
+        Number of spectra to be averaged. The default is 1.
+    start_px : int, optional
+        First pixel to be read from the acquired trace. 
+        The default is 0, i.e. the first pixel.
+    stop_px : int, optional
+        Last pixel to be read from the acquired trace. 
+        The default is reading until the last pixel.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    measconfig = MeasConfig_DefaultValues(handle)
+        
+            
+    measconfig = dll.MeasConfigType()
+    pixels = AVS_GetParameter(handle)['Detector_NrPixels']
+    
+    if start_px is not None:
+        if type(start_px) is int:
+            if start_px >= 0 and start_px < pixels:
+                measconfig.m_StartPixel = 0
+            else:
+                raise ValueError('Start pixel must be between 0 and', pixels-1,
+                                 'but was', start_px)
+        else: 
+            raise TypeError('Start pixel index must be integer but was of type',
+                            type(start_px))
+            
+    if stop_px is not None:
+        if type(stop_px) is int:
+            if stop_px >= 0 and stop_px < pixels:
+                measconfig.m_StopPixel = 0
+            else:
+                raise ValueError('Stop pixel must be between 0 and', pixels-1,
+                                 'but was', stop_px)
+        else: 
+            raise TypeError('Stop pixel index must be integer but was of type',
+                            type(start_px))
+    
+    measconfig.m_IntegrationTime = time
+    measconfig.m_NrAverages = avg
+    
+    AVS_PrepareMeasure(handle, measconfig)
+    return
