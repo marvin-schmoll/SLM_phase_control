@@ -20,57 +20,95 @@ class feedbacker(object):
     """works back and forth with publish_window"""
 
     def __init__(self, parent, slm_lib, CAMERA):
+        self.CAMERA = CAMERA   # True for Camera Mode, False for Spectrometer Mode
         self.parent = parent
         self.slm_lib = slm_lib
         self.win = tk.Toplevel()
+        if self.CAMERA: 
+            title = 'SLM Phase Control - Feedbacker (spatial)'
+        else:
+            title = 'SLM Phase Control - Feedbacker (spectral)'
+        self.win.title(title)
         self.win.protocol("WM_DELETE_WINDOW", self.on_close)
         if not SANTEC_SLM:
             self.win.geometry('500x950+300+100')
         self.rect_id = 0
 
         # creating frames
-        frm_cam = tk.Frame(self.win)
+        if self.CAMERA:
+            frm_cam = tk.Frame(self.win)
+            frm_cam_but = tk.Frame(frm_cam)
+            frm_cam_but_set = tk.Frame(frm_cam_but)
+        else:
+            frm_spc_but = tk.Frame(self.win)
+            frm_spc_but_set = tk.Frame(frm_spc_but)
         frm_bot = tk.Frame(self.win)
-        frm_cam_but = tk.Frame(frm_cam)
-        frm_cam_but_set = tk.Frame(frm_cam_but)
         frm_plt = tk.Frame(self.win)
         frm_mid = tk.Frame(self.win)
         frm_ratio = tk.LabelFrame(frm_mid, text='Phase extraction')
         frm_pid = tk.LabelFrame(frm_mid, text='PID controller')
+        
+        vcmd = (self.win.register(self.parent.callback))
 
         # creating buttons n labels
         but_exit = tk.Button(frm_bot, text='EXIT', command=self.on_close)
         but_feedback = tk.Button(frm_bot, text='Feedback', command=self.feedback)
-        but_cam_img = tk.Button(frm_cam_but, text='Get image', command=self.cam_img)
-        but_cam_line = tk.Button(frm_cam_but, text='Plot fft', command=self.plot_fft)
-        self.bVar_cam = tk.BooleanVar(self.win,True)
-        but_cam_phi = tk.Button(frm_cam_but, text='Scan 2pi', command=self.fast_scan)
+        if self.CAMERA:
+            but_cam_img = tk.Button(frm_cam_but, text='Get image', command=self.cam_img)
+            but_cam_line = tk.Button(frm_cam_but, text='Plot fft', command=self.plot_fft)
+            but_cam_phi = tk.Button(frm_cam_but, text='Scan 2pi', command=self.fast_scan)
+            lbl_cam_ind = tk.Label(frm_cam_but_set, text='Camera index:')
+            self.strvar_cam_ind = tk.StringVar(self.win,'2')
+            self.ent_cam_ind = tk.Entry(
+                frm_cam_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_cam_ind)
+            lbl_cam_exp = tk.Label(frm_cam_but_set, text='Camera exposure (µs):')
+            self.strvar_cam_exp = tk.StringVar(self.win,'1000')
+            self.ent_cam_exp = tk.Entry(
+                frm_cam_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_cam_exp)
+            lbl_cam_gain = tk.Label(frm_cam_but_set, text='Camera gain (0-24):')
+            self.strvar_cam_gain = tk.StringVar(self.win,'20')
+            self.ent_cam_gain = tk.Entry(
+                frm_cam_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_cam_gain)
+        else:
+            lbl_spc_ind = tk.Label(frm_spc_but_set, text='Spectrometer index:')
+            self.strvar_spc_ind = tk.StringVar(self.win,'1')
+            self.ent_spc_ind = tk.Entry(
+                frm_spc_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_spc_ind)
+            lbl_spc_exp = tk.Label(frm_spc_but_set, text='Exposure time (ms):')
+            self.strvar_spc_exp = tk.StringVar(self.win,'50')
+            self.ent_spc_exp = tk.Entry(
+                frm_spc_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_spc_exp)
+            lbl_spc_gain = tk.Label(frm_spc_but_set, text='Nr. of averages:')
+            self.strvar_spc_avg = tk.StringVar(self.win,'1')
+            self.ent_spc_avg = tk.Entry(
+                frm_spc_but_set, width=11,  validate='all',
+                validatecommand=(vcmd, '%d', '%P', '%S'),
+                textvariable=self.strvar_spc_avg)
+            but_spc_ind = tk.Button(frm_spc_but_set, text='Get index',
+                                    command=self.get_spec_index, height=1)
+            but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
+                                      command=self.start_measure, height=2)
+            but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
+                                     command=self.stop_measure, height=2)
+            but_spc_phi = tk.Button(frm_spc_but, text='Scan 2pi',
+                                    command=self.fast_scan, height=2)     
         lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
         lbl_phi_2 = tk.Label(frm_ratio, text='pi')
-        vcmd = (self.win.register(self.parent.callback))
         self.strvar_flat = tk.StringVar()
         self.ent_flat = tk.Entry(
             frm_ratio, width=11,  validate='all',
             validatecommand=(vcmd, '%d', '%P', '%S'),
             textvariable=self.strvar_flat)
-        lbl_cam_ind = tk.Label(frm_cam_but_set, text='Camera index:')
-        self.strvar_cam_ind = tk.StringVar(self.win,'2')
-        self.ent_cam_ind = tk.Entry(
-            frm_cam_but_set, width=11,  validate='all',
-            validatecommand=(vcmd, '%d', '%P', '%S'),
-            textvariable=self.strvar_cam_ind)
-        lbl_cam_exp = tk.Label(frm_cam_but_set, text='Camera exposure (µs):')
-        self.strvar_cam_exp = tk.StringVar(self.win,'1000')
-        self.ent_cam_exp = tk.Entry(
-            frm_cam_but_set, width=11,  validate='all',
-            validatecommand=(vcmd, '%d', '%P', '%S'),
-            textvariable=self.strvar_cam_exp)
-        lbl_cam_gain = tk.Label(frm_cam_but_set, text='Camera gain (0-24):')
-        self.strvar_cam_gain = tk.StringVar(self.win,'20')
-        self.ent_cam_gain = tk.Entry(
-            frm_cam_but_set, width=11,  validate='all',
-            validatecommand=(vcmd, '%d', '%P', '%S'),
-            textvariable=self.strvar_cam_gain)
         if SANTEC_SLM: text='4'
         else: text='8'
         self.strvar_indexfft = tk.StringVar(self.win,text)
@@ -96,10 +134,11 @@ class feedbacker(object):
         self.cbox_area = tk.Checkbutton(frm_ratio, text='view area',
                            variable=self.intvar_area,
                            onvalue=1, offvalue=0)
-        lbl_direction = tk.Label(frm_ratio, text='Integration direction:')
-        self.cbx_dir = tk.ttk.Combobox(frm_ratio, width=10,
-                                       values=['horizontal', 'vertical'])
-        self.cbx_dir.current(0)
+        if self.CAMERA:
+            lbl_direction = tk.Label(frm_ratio, text='Integration direction:')
+            self.cbx_dir = tk.ttk.Combobox(frm_ratio, width=10,
+                                           values=['horizontal', 'vertical'])
+            self.cbx_dir.current(0)
         lbl_setp = tk.Label(frm_pid, text='Setpoint:')
         self.strvar_setp = tk.StringVar(self.win,'0')
         self.ent_setp = tk.Entry(
@@ -125,28 +164,46 @@ class feedbacker(object):
 
 
         # setting up
-        frm_cam.grid(row=0, column=0, sticky='nsew')
+        if self.CAMERA:
+            frm_cam.grid(row=0, column=0, sticky='nsew')
+            frm_cam_but.grid(row=1, column=0, sticky='nsew')
+        else:
+            frm_spc_but.grid(row=0, column=0, sticky='nsew')
         frm_plt.grid(row=1, column=0, sticky='nsew')
         frm_mid.grid(row=2, column=0, sticky='nsew')
         frm_bot.grid(row=3, column=0)
-        frm_cam_but.grid(row=1, column=0, sticky='nsew')
         frm_ratio.grid(row=0, column=0, padx=5)
         frm_pid.grid(row=0, column=1, padx=5)
-        frm_ratio.config(width=282, height=108)
+        if self.CAMERA:
+            frm_ratio.config(width=282, height=108)
+        else:
+            frm_ratio.config(width=282, height=88)
         frm_ratio.grid_propagate(False)
 
-
-        # setting up buttons frm_cam
-        but_cam_img.grid(row=0, column=0, padx=5, pady=5, ipadx=5, ipady=5)
-        but_cam_line.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
-        but_cam_phi.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
-        frm_cam_but_set.grid(row=0, column=3, sticky='nsew')
-        lbl_cam_ind.grid(row=0, column=0)
-        self.ent_cam_ind.grid(row=0, column=1, padx=(0,10))
-        lbl_cam_exp.grid(row=1, column=0)
-        self.ent_cam_exp.grid(row=1, column=1, padx=(0,10))
-        lbl_cam_gain.grid(row=2, column=0)
-        self.ent_cam_gain.grid(row=2, column=1, padx=(0,10))
+        # setting up buttons frm_cam / frm_spc
+        if self.CAMERA:
+            but_cam_img.grid(row=0, column=0, padx=5, pady=5, ipadx=5, ipady=5)
+            but_cam_line.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
+            but_cam_phi.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
+            frm_cam_but_set.grid(row=0, column=3, sticky='nsew')
+            lbl_cam_ind.grid(row=0, column=0)
+            self.ent_cam_ind.grid(row=0, column=1, padx=(0,10))
+            lbl_cam_exp.grid(row=1, column=0)
+            self.ent_cam_exp.grid(row=1, column=1, padx=(0,10))
+            lbl_cam_gain.grid(row=2, column=0)
+            self.ent_cam_gain.grid(row=2, column=1, padx=(0,10))
+        else:
+            frm_spc_but_set.grid(row=0, column=0, sticky='nsew')
+            but_spc_start.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
+            but_spc_stop.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
+            but_spc_phi.grid(row=0, column=3, padx=5, pady=5, ipadx=5, ipady=5)
+            lbl_spc_ind.grid(row=0, column=0)
+            self.ent_spc_ind.grid(row=0, column=1)
+            but_spc_ind.grid(row=0, column=2, padx=(1,5))
+            lbl_spc_exp.grid(row=1, column=0)
+            self.ent_spc_exp.grid(row=1, column=1)
+            lbl_spc_gain.grid(row=2, column=0)
+            self.ent_spc_avg.grid(row=2, column=1)
 
         # setting up buttons frm_bot
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
@@ -165,19 +222,22 @@ class feedbacker(object):
         but_pid_stop.grid(row=2, column=2)
 
         # setting up cam image
-        self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
-        self.img_canvas.grid(row=0, sticky='nsew')
-        self.img_canvas.configure(bg='grey')
-        self.image = self.img_canvas.create_image(0, 0, anchor="nw")
+        if self.CAMERA:
+            self.img_canvas = tk.Canvas(frm_cam, height=350, width=500)
+            self.img_canvas.grid(row=0, sticky='nsew')
+            self.img_canvas.configure(bg='grey')
+            self.image = self.img_canvas.create_image(0, 0, anchor="nw")
 
         #setting up frm_plt
-        self.figr = Figure(figsize=(5, 2), dpi=100)
+        if self.CAMERA: sizefactor = 1
+        else: sizefactor = 1.05
+        self.figr = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1r = self.figr.add_subplot(211)
         self.ax2r = self.figr.add_subplot(212)
         self.img1r = FigureCanvasTkAgg(self.figr, frm_plt)
         self.tk_widget_figr = self.img1r.get_tk_widget()
         self.tk_widget_figr.grid(row=0, column=0, sticky='nsew')
-        self.figp = Figure(figsize=(5, 2), dpi=100)
+        self.figp = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1p = self.figp.add_subplot(111)
         self.img1p = FigureCanvasTkAgg(self.figp, frm_plt)
         self.tk_widget_figp = self.img1p.get_tk_widget()
@@ -187,25 +247,35 @@ class feedbacker(object):
         self.ent_area1x.grid(row=0, column=0)
         self.ent_area1y.grid(row=0, column=1)
         self.cbox_area.grid(row=0, column=2)
-        lbl_direction.grid(row=1, column=0, columnspan=2)
-        self.cbx_dir.grid(row=1, column=2, columnspan=2, sticky='w')
-        lbl_indexfft.grid(row=2, column=0, sticky='e')
-        self.ent_indexfft.grid(row=2, column=1)
-        lbl_angle.grid(row=2, column=2)
-        self.lbl_angle.grid(row=2, column=3)
-        lbl_phi.grid(row=3, column=0, sticky='e')
-        self.ent_flat.grid(row=3, column=1)
-        lbl_phi_2.grid(row=3, column=2, sticky='w')
+        if self.CAMERA:
+            lbl_direction.grid(row=1, column=0, columnspan=2)
+            self.cbx_dir.grid(row=1, column=2, columnspan=2, sticky='w')
+            lbl_indexfft.grid(row=2, column=0, sticky='e')
+            self.ent_indexfft.grid(row=2, column=1)
+            lbl_angle.grid(row=2, column=2)
+            self.lbl_angle.grid(row=2, column=3)
+            lbl_phi.grid(row=3, column=0, sticky='e')
+            self.ent_flat.grid(row=3, column=1)
+            lbl_phi_2.grid(row=3, column=2, sticky='w')
+        else:
+            lbl_indexfft.grid(row=1, column=0, sticky='e')
+            self.ent_indexfft.grid(row=1, column=1)
+            lbl_angle.grid(row=1, column=2)
+            self.lbl_angle.grid(row=1, column=3)
+            lbl_phi.grid(row=2, column=0, sticky='e')
+            self.ent_flat.grid(row=2, column=1)
+            lbl_phi_2.grid(row=2, column=2, sticky='w')
 
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
 
         #setting up a listener for catchin esc from cam1
-        self.stop_cam = 0
-        global stop_pid
-        stop_pid = False
-        l = keyboard.Listener(on_press=self.press_callback)
-        l.start()
+        if self.CAMERA:
+            self.stop_cam = 0
+            global stop_pid
+            stop_pid = False
+            l = keyboard.Listener(on_press=self.press_callback)
+            l.start()
 
     def press_callback(self, key):
         #TODO: does this work? I dont think so 
@@ -376,6 +446,15 @@ class feedbacker(object):
         self.ax1p.plot(self.im_phase)
         self.img1p.draw()
         self.win.after(500,self.plot_phase)
+    
+    def get_spec_index(self):
+        pass
+    
+    def start_measure(self):
+        pass
+    
+    def stop_measure(self):
+        pass
 
     def fast_scan(self):
         phis = np.linspace(0,2,60)
