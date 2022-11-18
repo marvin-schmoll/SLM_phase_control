@@ -35,11 +35,17 @@ else: # Windows will have 'win32' or 'cygwin'
     import ctypes.wintypes
     if (ctypes.sizeof(ctypes.c_voidp) == 8): # 64 bit
         WM_MEAS_READY = 0x8001
-        lib = ctypes.WinDLL("./avaspec_driver/avaspecx64.dll")
+        try:
+            lib = ctypes.WinDLL("./avaspec_driver/avaspecx64.dll")
+        except FileNotFoundError:
+            lib = ctypes.WinDLL("./avaspecx64.dll")
         func = ctypes.WINFUNCTYPE
     else:
         WM_MEAS_READY = 0x0401
-        lib = ctypes.WinDLL("./avaspec_driver/avaspec.dll")
+        try:
+            lib = ctypes.WinDLL("./avaspec_driver/avaspec.dll")
+        except FileNotFoundError:
+            lib = ctypes.WinDLL("./avaspec.dll")
         func = ctypes.WINFUNCTYPE
 
 class AvsIdentityType(ctypes.Structure):

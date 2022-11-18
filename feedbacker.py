@@ -100,7 +100,7 @@ class feedbacker(object):
             but_spc_deactivate = tk.Button(frm_spc_but_set, text='Deactivate',
                                     command=self.spec_deactivate, width=8)
             but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
-                                      command=self.start_measure, height=2)
+                                      command=self.spc_img, height=2)
             but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
                                      command=self.stop_measure, height=2)
             but_spc_phi = tk.Button(frm_spc_but, text='Scan 2pi',
@@ -123,12 +123,14 @@ class feedbacker(object):
         self.lbl_angle = tk.Label(frm_ratio, text='angle')
         if SANTEC_SLM: text='400, 1050'
         else: text='255, 420'
+        if not CAMERA: text = '50'
         self.strvar_area1x = tk.StringVar(self.win,text)
         self.ent_area1x = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1x)
         if SANTEC_SLM: text='630, 650'
         else: text='470, 480'
+        if not CAMERA: text = '500'
         self.strvar_area1y = tk.StringVar(self.win,text)
         self.ent_area1y = tk.Entry(
             frm_ratio, width=11,
@@ -273,22 +275,20 @@ class feedbacker(object):
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
 
-        # setting up a listener for catchin esc from cam1
-        if self.CAMERA:
-            self.stop_cam = 0
-            global stop_pid
-            stop_pid = False
-            l = keyboard.Listener(on_press=self.press_callback)
-            l.start()
+        # setting up a listener for catchin esc from cam1 or spec
+        self.stop_acquire = 0
+        global stop_pid
+        stop_pid = False
+        l = keyboard.Listener(on_press=self.press_callback)
+        l.start()
         # class attributes to store spectrometer state
-        else:
+        if not self.CAMERA:
             self.spec_interface_initialized = False
             self.active_spec_handle = None
 
-    def press_callback(self, key):
-        #TODO: does this work? I dont think so 
+    def press_callback(self, key): 
         if key == keyboard.Key.esc:
-            self.stop_cam = 1
+            self.stop_acquire = 1
         return
 
     def feedback(self):
@@ -340,6 +340,7 @@ class feedbacker(object):
 
     def acq_mono(self, device, num):
         """
+        acquisition function for camera
                :brief      acquisition function of mono device
                :param      device:     device object[Device]
                :param      num:        number of acquisition images[int]
@@ -382,11 +383,11 @@ class feedbacker(object):
             #trying spatial phase extraction
             im_ = numpy_image[int(ypoints[0]):int(ypoints[1]),int(xpoints[0]):int(xpoints[1])]
             if self.cbx_dir.get() == 'horizontal':
-                self.im_sum = np.sum(im_, axis=0)
+                self.trace = np.sum(im_, axis=0)
             else:
-                self.im_sum = np.sum(im_, axis=1)
+                self.trace = np.sum(im_, axis=1)
 
-            im_fft = np.fft.fft(self.im_sum)
+            im_fft = np.fft.fft(self.trace)
             self.abs_im_fft = np.abs(im_fft)
             ind = round(float(self.ent_indexfft.get()))
             try:
@@ -418,8 +419,63 @@ class feedbacker(object):
             self.im_phase[-1] = self.im_angl
             self.im_phase = np.unwrap(self.im_phase)
 
-            if self.stop_cam == 1:
-                self.stop_cam = 0
+            if self.stop_acquire == 1:
+                self.stop_acquire = 0
+                break
+    
+    
+    def eval_spec(self, num):
+        """
+        acquisition function for spectrometer
+               :brief      acquisition function of mono device
+               :param      num:        number of acquisition images[int]
+        """
+        for i in range(num):
+            time.sleep(0.01)
+
+            # get raw trace
+            timestamp, data = avs.get_spectrum(self.active_spec_handle)
+
+            start = int(self.ent_area1x.get())
+            stop = int(self.ent_area1y.get())
+            self.trace = data[start:stop]
+            
+            print(timestamp)
+
+            im_fft = np.fft.fft(self.trace)
+            self.abs_im_fft = np.abs(im_fft)
+            ind = round(float(self.ent_indexfft.get()))
+            try:
+                self.im_angl = np.angle(im_fft[ind])
+            except:
+                self.im_angl = 0
+            self.lbl_angle.config(text=np.round(self.im_angl, 6))
+
+            # # Show images
+            # picture = Image.fromarray(numpy_image)
+            # picture = picture.resize((500, 350), resample=0)
+            # picture = ImageTk.PhotoImage(picture)
+            
+            # self.img_canvas.itemconfig(self.image, image=picture)
+            # self.img_canvas.image = picture # keep a reference!
+            
+            # # Draw selection lines
+            # if self.intvar_area.get() == 1:
+            #     x1, x2 = xpoints * 500 / 1440
+            #     y1, y2 = ypoints * 350 / 1080
+            #     new_rect_id = self.img_canvas.create_rectangle(x1, y1, x2, y2, outline='orange')
+            #     self.img_canvas.delete(self.rect_id)
+            #     self.rect_id = new_rect_id
+            # else:
+            #     self.img_canvas.delete(self.rect_id) 
+
+            # creating the phase vector
+            self.im_phase[:-1] = self.im_phase[1:]
+            self.im_phase[-1] = self.im_angl
+            self.im_phase = np.unwrap(self.im_phase)
+
+            if self.stop_acquire == 1:
+                self.stop_acquire = 0
                 break
 
 
@@ -434,6 +490,12 @@ class feedbacker(object):
         self.render_thread.start()
         self.plot_phase()
 
+    def spc_img(self):
+        self.render_thread = threading.Thread(target=self.start_measure)
+        self.render_thread.daemon = True
+        self.render_thread.start()
+        self.plot_phase()
+
 
     def plot_fft(self):
         # find maximum in the fourier trace
@@ -441,7 +503,7 @@ class feedbacker(object):
         print(maxindex)
         
         self.ax1r.clear()
-        self.ax1r.plot(self.im_sum)
+        self.ax1r.plot(self.trace)
         self.ax2r.clear()
         self.ax2r.plot(self.abs_im_fft)
         self.ax2r.plot(maxindex, self.abs_im_fft[maxindex]*1.2, 'v')
@@ -477,6 +539,7 @@ class feedbacker(object):
         no_avg = int(self.ent_spc_avg.get())
         avs.set_measure_params(self.active_spec_handle, int_time, no_avg)
         avs.AVS_Measure(self.active_spec_handle)
+        self.eval_spec(10000)
     
     def stop_measure(self):
         if self.active_spec_handle is not None:

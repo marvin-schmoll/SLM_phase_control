@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 #  This script is on fire!!! 
 
-import avaspec_driver._avs_win as dll
+try:
+    import avaspec_driver._avs_win as dll
+except ModuleNotFoundError:
+    import _avs_win as dll
 import numpy as np
-import time as tm
 
 
 def AVS_Status(avs_status):
@@ -437,41 +439,6 @@ def AVS_GetSaturatedPixels(handle):
 
 
 
-def acquire_single_spectrum(handle, config=None):
-    '''
-    Simple function to acquire a single spectrum with the provided 
-    measurement configuration.
-
-    Parameters
-    ----------
-    handle : int
-        the AvsHandle of the spectrometer
-    config : MeasConfigType, optional
-        Measurement Configuration. 
-        Defaults to MeasConfig_DefaultValues.
-
-    Returns
-    -------
-    float
-        Timestamp: Ticks count at which last pixel of spectrum is received by microcontroller.
-        Ticks are in seconds since spectrometer started.
-    np.array
-        pixel values of the spectrometer
-
-    '''
-    
-    AVS_PrepareMeasure(handle, config)
-    AVS_Measure(handle, nummeas=1, windowhandle=0)
-    dataready = False
-    while dataready == False:
-        tm.sleep(0.001)
-        dataready = dll.AVS_PollScan(handle)
-    
-    timestamp, data = AVS_GetScopeData(handle)
-    return timestamp/100000, data
-
-
-
 def set_measure_params(handle, time, avg=1, start_px=None, stop_px=None):
     '''
     Prepares measurement for spectrometer at given handle.
@@ -500,9 +467,7 @@ def set_measure_params(handle, time, avg=1, start_px=None, stop_px=None):
     '''
     
     measconfig = MeasConfig_DefaultValues(handle)
-        
-            
-    measconfig = dll.MeasConfigType()
+    
     pixels = AVS_GetParameter(handle)['Detector_NrPixels']
     
     if start_px is not None:
@@ -532,3 +497,62 @@ def set_measure_params(handle, time, avg=1, start_px=None, stop_px=None):
     
     AVS_PrepareMeasure(handle, measconfig)
     return
+
+
+
+def get_spectrum(handle):
+    '''
+    Get current spectrum after or during a measurement.
+
+    Parameters
+    ----------
+    handle : int
+        AvsHandle of the spectrometer.
+
+    Returns
+    -------
+    timestamp : float
+        Time in seconds at which last pixel of spectrum is received by 
+        microcontroller.
+    spectrum : np.array
+        Pixel values of the spectrometer.
+
+    '''
+    
+    dataready = False
+    while dataready == False:
+        dataready = AVS_PollScan(handle)
+    t, spectrum = AVS_GetScopeData(handle)
+    timestamp = t/100000
+    
+    return timestamp, spectrum
+
+
+
+def acquire_single_spectrum(handle, config=None):
+    '''
+    Simple function to acquire a single spectrum with the provided 
+    measurement configuration.
+
+    Parameters
+    ----------
+    handle : int
+        the AvsHandle of the spectrometer
+    config : MeasConfigType, optional
+        Measurement Configuration. 
+        Defaults to MeasConfig_DefaultValues.
+
+    Returns
+    -------
+    timestamp : float
+        Time in seconds at which last pixel of spectrum is received by 
+        microcontroller.
+    spectrum : np.array
+        Pixel values of the spectrometer.
+
+    '''
+    
+    AVS_PrepareMeasure(handle, config)
+    AVS_Measure(handle, nummeas=1, windowhandle=0)
+    
+    return get_spectrum(handle)
