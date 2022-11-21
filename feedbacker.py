@@ -245,9 +245,15 @@ class feedbacker(object):
         self.tk_widget_figr.grid(row=0, column=0, sticky='nsew')
         self.figp = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1p = self.figp.add_subplot(111)
+        self.phase_line, = self.ax1p.plot([])
+        self.ax1p.set_xlim(0, 1000)
+        self.ax1p.set_ylim([-np.pi, np.pi])
+        self.figp.canvas.draw()
         self.img1p = FigureCanvasTkAgg(self.figp, frm_plt)
         self.tk_widget_figp = self.img1p.get_tk_widget()
         self.tk_widget_figp.grid(row=1, column=0, sticky='nsew')
+        self.img1p.draw()
+        self.ax1p_blit = self.figp.canvas.copy_from_bbox(self.ax1p.bbox)
 
         # setting up frm_ratio
         self.ent_area1x.grid(row=0, column=0)
@@ -417,7 +423,6 @@ class feedbacker(object):
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
             self.im_phase[-1] = self.im_angl
-            self.im_phase = np.unwrap(self.im_phase)
 
             if self.stop_acquire == 1:
                 self.stop_acquire = 0
@@ -472,7 +477,6 @@ class feedbacker(object):
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
             self.im_phase[-1] = self.im_angl
-            self.im_phase = np.unwrap(self.im_phase)
 
             if self.stop_acquire == 1:
                 self.stop_acquire = 0
@@ -512,10 +516,12 @@ class feedbacker(object):
         self.img1r.draw()
 
     def plot_phase(self):
-        self.ax1p.clear()
-        self.ax1p.plot(self.im_phase)
-        self.img1p.draw()
-        self.win.after(500,self.plot_phase)
+        self.figp.canvas.restore_region(self.ax1p_blit)
+        self.phase_line.set_data(np.arange(1000), self.im_phase)
+        self.ax1p.draw_artist(self.phase_line)
+        self.figp.canvas.blit(self.ax1p.bbox)
+        self.figp.canvas.flush_events()
+        self.win.after(100,self.plot_phase)
     
     def spec_activate(self):
         if not self.spec_interface_initialized:
