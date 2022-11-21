@@ -237,12 +237,26 @@ class feedbacker(object):
         # setting up frm_plt
         if self.CAMERA: sizefactor = 1
         else: sizefactor = 1.05
+        
         self.figr = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1r = self.figr.add_subplot(211)
         self.ax2r = self.figr.add_subplot(212)
+        self.trace_line, = self.ax1r.plot([])
+        self.fourier_line, = self.ax2r.plot([])
+        #self.fourier_indicator = self.ax2r.plot([], 'v')
+        #self.fourier_text = self.ax2r.text(0.8,0.5, "")
+        self.ax1r.set_xlim(0, 450)
+        self.ax1r.set_ylim(0, 2000)
+        self.ax2r.set_xlim(0, 50)
+        self.ax2r.set_ylim(0, 500)
+        self.figr.canvas.draw()
         self.img1r = FigureCanvasTkAgg(self.figr, frm_plt)
         self.tk_widget_figr = self.img1r.get_tk_widget()
         self.tk_widget_figr.grid(row=0, column=0, sticky='nsew')
+        self.img1r.draw()
+        self.ax1r_blit = self.figr.canvas.copy_from_bbox(self.ax1r.bbox)
+        self.ax2r_blit = self.figr.canvas.copy_from_bbox(self.ax2r.bbox)
+        
         self.figp = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1p = self.figp.add_subplot(111)
         self.phase_line, = self.ax1p.plot([])
@@ -456,24 +470,6 @@ class feedbacker(object):
                 self.im_angl = 0
             self.lbl_angle.config(text=np.round(self.im_angl, 6))
 
-            # # Show images
-            # picture = Image.fromarray(numpy_image)
-            # picture = picture.resize((500, 350), resample=0)
-            # picture = ImageTk.PhotoImage(picture)
-            
-            # self.img_canvas.itemconfig(self.image, image=picture)
-            # self.img_canvas.image = picture # keep a reference!
-            
-            # # Draw selection lines
-            # if self.intvar_area.get() == 1:
-            #     x1, x2 = xpoints * 500 / 1440
-            #     y1, y2 = ypoints * 350 / 1080
-            #     new_rect_id = self.img_canvas.create_rectangle(x1, y1, x2, y2, outline='orange')
-            #     self.img_canvas.delete(self.rect_id)
-            #     self.rect_id = new_rect_id
-            # else:
-            #     self.img_canvas.delete(self.rect_id) 
-
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
             self.im_phase[-1] = self.im_angl
@@ -481,6 +477,8 @@ class feedbacker(object):
             if self.stop_acquire == 1:
                 self.stop_acquire = 0
                 break
+            
+            self.plot_fft_blit()
 
 
     def cam_on_close(self, device):
@@ -500,7 +498,6 @@ class feedbacker(object):
         self.render_thread.start()
         self.plot_phase()
 
-
     def plot_fft(self):
         # find maximum in the fourier trace
         maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[3:50]))[0][0]
@@ -515,13 +512,31 @@ class feedbacker(object):
         self.ax2r.set_xlim(0,50)
         self.img1r.draw()
 
+    def plot_fft_blit(self):
+        # find maximum in the fourier trace
+        maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[3:50]))[0][0]
+        print(maxindex)
+        
+        self.figr.canvas.restore_region(self.ax1r_blit)
+        self.figr.canvas.restore_region(self.ax2r_blit)
+        self.trace_line.set_data(np.arange(len(self.trace)), self.trace)
+        self.ax1r.draw_artist(self.trace_line)
+        self.fourier_line.set_data(np.arange(50), self.abs_im_fft[:50])
+        self.ax1r.draw_artist(self.fourier_line)
+        #self.fourier_indicator.set_data(maxindex, self.abs_im_fft[maxindex]*1.2)
+        #self.fourier_text.set_text(str(maxindex))
+        #self.fourier_text.set_position(maxindex-1, self.abs_im_fft[maxindex]*1.5)
+        self.figr.canvas.blit()
+        self.figr.canvas.flush_events()
+
     def plot_phase(self):
         self.figp.canvas.restore_region(self.ax1p_blit)
         self.phase_line.set_data(np.arange(1000), self.im_phase)
         self.ax1p.draw_artist(self.phase_line)
         self.figp.canvas.blit(self.ax1p.bbox)
         self.figp.canvas.flush_events()
-        self.win.after(100,self.plot_phase)
+        self.win.after(50,self.plot_phase)
+
     
     def spec_activate(self):
         if not self.spec_interface_initialized:
