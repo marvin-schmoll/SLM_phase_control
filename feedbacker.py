@@ -123,14 +123,14 @@ class feedbacker(object):
         self.lbl_angle = tk.Label(frm_ratio, text='angle')
         if SANTEC_SLM: text='400, 1050'
         else: text='255, 420'
-        if not CAMERA: text = '50'
+        if not CAMERA: text = '1950'
         self.strvar_area1x = tk.StringVar(self.win,text)
         self.ent_area1x = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1x)
         if SANTEC_SLM: text='630, 650'
         else: text='470, 480'
-        if not CAMERA: text = '500'
+        if not CAMERA: text = '2100'
         self.strvar_area1y = tk.StringVar(self.win,text)
         self.ent_area1y = tk.Entry(
             frm_ratio, width=11,
@@ -243,12 +243,13 @@ class feedbacker(object):
         self.ax2r = self.figr.add_subplot(212)
         self.trace_line, = self.ax1r.plot([])
         self.fourier_line, = self.ax2r.plot([])
-        #self.fourier_indicator = self.ax2r.plot([], 'v')
-        #self.fourier_text = self.ax2r.text(0.8,0.5, "")
-        self.ax1r.set_xlim(0, 450)
-        self.ax1r.set_ylim(0, 2000)
+        self.fourier_indicator = self.ax2r.plot([], 'v')[0]
+        self.fourier_text = self.ax2r.text(0.4,0.5, "")
+        self.ax1r.set_xlim(0, 200)
+        self.ax1r.set_ylim(0, 3000)
+        self.ax1r.grid()
         self.ax2r.set_xlim(0, 50)
-        self.ax2r.set_ylim(0, 500)
+        self.ax2r.set_ylim(0, .6)
         self.figr.canvas.draw()
         self.img1r = FigureCanvasTkAgg(self.figr, frm_plt)
         self.tk_widget_figr = self.img1r.get_tk_widget()
@@ -259,9 +260,10 @@ class feedbacker(object):
         
         self.figp = Figure(figsize=(5*sizefactor, 2*sizefactor), dpi=100)
         self.ax1p = self.figp.add_subplot(111)
-        self.phase_line, = self.ax1p.plot([])
+        self.phase_line, = self.ax1p.plot([], '.', ms=1)
         self.ax1p.set_xlim(0, 1000)
         self.ax1p.set_ylim([-np.pi, np.pi])
+        self.ax1p.grid()
         self.figp.canvas.draw()
         self.img1p = FigureCanvasTkAgg(self.figp, frm_plt)
         self.tk_widget_figp = self.img1p.get_tk_widget()
@@ -443,13 +445,13 @@ class feedbacker(object):
                 break
     
     
-    def eval_spec(self, num):
+    def eval_spec(self):
         """
         acquisition function for spectrometer
                :brief      acquisition function of mono device
                :param      num:        number of acquisition images[int]
         """
-        for i in range(num):
+        while True:
             time.sleep(0.01)
 
             # get raw trace
@@ -459,10 +461,11 @@ class feedbacker(object):
             stop = int(self.ent_area1y.get())
             self.trace = data[start:stop]
             
-            print(timestamp)
+            #print(timestamp)
 
             im_fft = np.fft.fft(self.trace)
             self.abs_im_fft = np.abs(im_fft)
+            self.abs_im_fft = self.abs_im_fft / np.max(self.abs_im_fft)
             ind = round(float(self.ent_indexfft.get()))
             try:
                 self.im_angl = np.angle(im_fft[ind])
@@ -514,8 +517,7 @@ class feedbacker(object):
 
     def plot_fft_blit(self):
         # find maximum in the fourier trace
-        maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[3:50]))[0][0]
-        print(maxindex)
+        maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[5:50]))[0][0]
         
         self.figr.canvas.restore_region(self.ax1r_blit)
         self.figr.canvas.restore_region(self.ax2r_blit)
@@ -523,9 +525,11 @@ class feedbacker(object):
         self.ax1r.draw_artist(self.trace_line)
         self.fourier_line.set_data(np.arange(50), self.abs_im_fft[:50])
         self.ax1r.draw_artist(self.fourier_line)
-        #self.fourier_indicator.set_data(maxindex, self.abs_im_fft[maxindex]*1.2)
-        #self.fourier_text.set_text(str(maxindex))
-        #self.fourier_text.set_position(maxindex-1, self.abs_im_fft[maxindex]*1.5)
+        self.fourier_indicator.set_data([maxindex], [self.abs_im_fft[maxindex]*1.2])
+        self.ax1r.draw_artist(self.fourier_indicator)
+        self.fourier_text.set_text(str(maxindex))
+        self.fourier_text.set_position((maxindex-1, self.abs_im_fft[maxindex]*1.5))
+        self.ax1r.draw_artist(self.fourier_text)
         self.figr.canvas.blit()
         self.figr.canvas.flush_events()
 
@@ -560,7 +564,7 @@ class feedbacker(object):
         no_avg = int(self.ent_spc_avg.get())
         avs.set_measure_params(self.active_spec_handle, int_time, no_avg)
         avs.AVS_Measure(self.active_spec_handle)
-        self.eval_spec(10000)
+        self.eval_spec()
     
     def stop_measure(self):
         if self.active_spec_handle is not None:
@@ -590,10 +594,11 @@ class feedbacker(object):
         self.set_pid_val()
         
         while True:
+            time.sleep(0.05)
             correction = self.pid(self.im_angl)
             self.strvar_flat.set(correction)
             self.feedback()
-            #print(self.pid.components)
+            print(self.pid.components)
             global stop_pid
             if stop_pid:
                 break
