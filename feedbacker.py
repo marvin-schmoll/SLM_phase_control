@@ -99,6 +99,8 @@ class feedbacker(object):
                                     command=self.spec_activate, width=8)
             but_spc_deactivate = tk.Button(frm_spc_but_set, text='Deactivate',
                                     command=self.spec_deactivate, width=8)
+            but_auto_scale = tk.Button(frm_spc_but_set, text='auto-scale',
+                                    command=self.auto_scale_spec_axis, width=8)
             but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
                                       command=self.spc_img, height=2)
             but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
@@ -210,6 +212,7 @@ class feedbacker(object):
             but_spc_deactivate.grid(row=1, column=2, padx=(1,5))
             lbl_spc_gain.grid(row=2, column=0)
             self.ent_spc_avg.grid(row=2, column=1)
+            but_auto_scale.grid(row=2, column=2, padx=(1,5))
 
         # setting up buttons frm_bot
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
@@ -500,7 +503,17 @@ class feedbacker(object):
         self.render_thread.daemon = True
         self.render_thread.start()
         self.plot_phase()
-
+        
+    def auto_scale_spec_axis(self):
+        self.ax1r.clear()
+        self.trace_line, = self.ax1r.plot([])
+        self.ax1r.set_xlim(0, len(self.trace))
+        self.ax1r.set_ylim(0, np.max(self.trace)*1.2)
+        self.ax1r.grid('both')
+        self.figr.canvas.draw()
+        self.img1r.draw()
+        self.ax1r_blit = self.figr.canvas.copy_from_bbox(self.ax1r.bbox)
+        
     def plot_fft(self):
         # find maximum in the fourier trace
         maxindex = np.where(self.abs_im_fft == np.max(self.abs_im_fft[3:50]))[0][0]
@@ -525,10 +538,10 @@ class feedbacker(object):
         self.ax1r.draw_artist(self.trace_line)
         self.fourier_line.set_data(np.arange(50), self.abs_im_fft[:50])
         self.ax1r.draw_artist(self.fourier_line)
-        self.fourier_indicator.set_data([maxindex], [self.abs_im_fft[maxindex]*1.2])
+        self.fourier_indicator.set_data([maxindex], [self.abs_im_fft[maxindex]+0.05])
         self.ax1r.draw_artist(self.fourier_indicator)
         self.fourier_text.set_text(str(maxindex))
-        self.fourier_text.set_position((maxindex-1, self.abs_im_fft[maxindex]*1.5))
+        self.fourier_text.set_position((maxindex-1, self.abs_im_fft[maxindex]+0.09))
         self.ax1r.draw_artist(self.fourier_text)
         self.figr.canvas.blit()
         self.figr.canvas.flush_events()
