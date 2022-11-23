@@ -601,11 +601,16 @@ class feedbacker(object):
             avs.AVS_StopMeasure(self.active_spec_handle)
 
     def fast_scan(self):
-        phis = np.linspace(0,2,60)
-        for phi in phis:
-            self.strvar_flat.set(phi)
-            self.feedback()
-            time.sleep(0.1)
+        self.phis = np.linspace(0,2,60)
+        self.phi_ind = 0
+        self.fast_scan_loop()
+
+    def fast_scan_loop(self):
+        self.strvar_flat.set(self.phis[self.phi_ind])
+        self.feedback()
+        self.phi_ind = self.phi_ind + 1
+        if self.phi_ind < 60:
+            self.win.after(100, self.fast_scan_loop)
 
     def set_area1(self):
         poly_1 = draw_polygon.draw_polygon(self.ax1, self.fig)
