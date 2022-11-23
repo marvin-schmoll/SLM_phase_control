@@ -21,10 +21,7 @@ These can be found and changed in the file "settings.py".
 
 ### New features
 
-Can now generate Hologram phase patterns with the Gerchberg-Saxton-algorithm.
+- Can now generate Hologram phase patterns with the Gerchberg-Saxton-algorithm.
 
-
-### Updates
-
-- Work on a feedback algorithm for delay stabilization.
-- Implementation of a spectrometer.
+- Now includes PID-controller to work use the SLM for delay stabilization in interferometry.
+	This works on spatial fringes with a camera (Daheng) or on spectral fringes with a spectrometer (Avspec).

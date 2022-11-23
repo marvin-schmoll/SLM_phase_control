@@ -452,6 +452,8 @@ class main_screen(object):
     def exit_prog(self):
         self.save('./last_settings.txt')
         self.pub_win_closed()
+        if self.fbck_win is not None:
+            self.fbck_win.on_close()
         self.main_win.destroy()
 
 
