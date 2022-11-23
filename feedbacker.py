@@ -36,6 +36,9 @@ class feedbacker(object):
         self.rect_id = 0
 
         # creating frames
+        frm_bot = tk.Frame(self.win)
+        frm_plt = tk.Frame(self.win)
+        frm_mid = tk.Frame(self.win)
         if self.CAMERA:
             frm_cam = tk.Frame(self.win)
             frm_cam_but = tk.Frame(frm_cam)
@@ -43,9 +46,7 @@ class feedbacker(object):
         else:
             frm_spc_but = tk.Frame(self.win)
             frm_spc_but_set = tk.Frame(frm_spc_but)
-        frm_bot = tk.Frame(self.win)
-        frm_plt = tk.Frame(self.win)
-        frm_mid = tk.Frame(self.win)
+            frm_plt_set = tk.LabelFrame(frm_mid, text='Plot options')
         frm_ratio = tk.LabelFrame(frm_mid, text='Phase extraction')
         frm_pid = tk.LabelFrame(frm_mid, text='PID controller')
         
@@ -99,14 +100,16 @@ class feedbacker(object):
                                     command=self.spec_activate, width=8)
             but_spc_deactivate = tk.Button(frm_spc_but_set, text='Deactivate',
                                     command=self.spec_deactivate, width=8)
-            but_auto_scale = tk.Button(frm_spc_but_set, text='auto-scale',
-                                    command=self.auto_scale_spec_axis, width=8)
             but_spc_start = tk.Button(frm_spc_but, text='Start\nSpectrometer',
                                       command=self.spc_img, height=2)
             but_spc_stop = tk.Button(frm_spc_but, text='Stop\nSpectrometer',
                                      command=self.stop_measure, height=2)
             but_spc_phi = tk.Button(frm_spc_but, text='Scan 2pi',
                                     command=self.fast_scan, height=2)     
+            but_auto_scale = tk.Button(frm_plt_set, text='auto-scale',
+                                    command=self.auto_scale_spec_axis, width=13)
+            but_bck = tk.Button(frm_plt_set, text='take background',
+                                    command=self.take_background, width=13)
         lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
         lbl_phi_2 = tk.Label(frm_ratio, text='pi')
         self.strvar_flat = tk.StringVar()
@@ -137,11 +140,11 @@ class feedbacker(object):
         self.ent_area1y = tk.Entry(
             frm_ratio, width=11,
             textvariable=self.strvar_area1y)
-        self.intvar_area = tk.IntVar()
-        self.cbox_area = tk.Checkbutton(frm_ratio, text='view area',
-                           variable=self.intvar_area,
-                           onvalue=1, offvalue=0)
         if self.CAMERA:
+            self.intvar_area = tk.IntVar()
+            self.cbox_area = tk.Checkbutton(frm_ratio, text='view area',
+                               variable=self.intvar_area,
+                               onvalue=1, offvalue=0)
             lbl_direction = tk.Label(frm_ratio, text='Integration direction:')
             self.cbx_dir = tk.ttk.Combobox(frm_ratio, width=10,
                                            values=['horizontal', 'vertical'])
@@ -179,12 +182,15 @@ class feedbacker(object):
         frm_plt.grid(row=1, column=0, sticky='nsew')
         frm_mid.grid(row=2, column=0, sticky='nsew')
         frm_bot.grid(row=3, column=0)
-        frm_ratio.grid(row=0, column=0, padx=5)
-        frm_pid.grid(row=0, column=1, padx=5)
         if self.CAMERA:
+            frm_ratio.grid(row=0, column=0, padx=5)
+            frm_pid.grid(row=0, column=1, padx=5)
             frm_ratio.config(width=282, height=108)
         else:
-            frm_ratio.config(width=282, height=88)
+            frm_plt_set.grid(row=0, column=0, padx=5)
+            frm_ratio.grid(row=0, column=1, padx=5)
+            frm_pid.grid(row=0, column=2, padx=5)
+            frm_ratio.config(width=162, height=104)
         frm_ratio.grid_propagate(False)
 
         # setting up buttons frm_cam / frm_spc
@@ -212,7 +218,11 @@ class feedbacker(object):
             but_spc_deactivate.grid(row=1, column=2, padx=(1,5))
             lbl_spc_gain.grid(row=2, column=0)
             self.ent_spc_avg.grid(row=2, column=1)
-            but_auto_scale.grid(row=2, column=2, padx=(1,5))
+        
+        # setting up frm_spc_set
+        if not self.CAMERA:
+            but_auto_scale.grid(row=0, column=0, padx=5, pady=(3,10))
+            but_bck.grid(row=1, column=0, padx=5)
 
         # setting up buttons frm_bot
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
@@ -277,8 +287,8 @@ class feedbacker(object):
         # setting up frm_ratio
         self.ent_area1x.grid(row=0, column=0)
         self.ent_area1y.grid(row=0, column=1)
-        self.cbox_area.grid(row=0, column=2)
         if self.CAMERA:
+            self.cbox_area.grid(row=0, column=2)
             lbl_direction.grid(row=1, column=0, columnspan=2)
             self.cbx_dir.grid(row=1, column=2, columnspan=2, sticky='w')
             lbl_indexfft.grid(row=2, column=0, sticky='e')
@@ -291,11 +301,11 @@ class feedbacker(object):
         else:
             lbl_indexfft.grid(row=1, column=0, sticky='e')
             self.ent_indexfft.grid(row=1, column=1)
-            lbl_angle.grid(row=1, column=2)
-            self.lbl_angle.grid(row=1, column=3)
-            lbl_phi.grid(row=2, column=0, sticky='e')
-            self.ent_flat.grid(row=2, column=1)
-            lbl_phi_2.grid(row=2, column=2, sticky='w')
+            lbl_angle.grid(row=2, column=0)
+            self.lbl_angle.grid(row=2, column=1)
+            lbl_phi.grid(row=3, column=0, sticky='e')
+            self.ent_flat.grid(row=3, column=1)
+            lbl_phi_2.grid(row=3, column=2, sticky='w')
 
         self.im_phase = np.zeros(1000)
         self.pid = PID(0.35, 0, 0, setpoint=0)
@@ -488,7 +498,6 @@ class feedbacker(object):
 
 
     def cam_on_close(self, device):
-        #TODO: somehow this does not work -> check to reopen in DahengGalaxyView
         device.stream_off()   # stop acquisition
         device.close_device()   # close device
 
@@ -504,7 +513,15 @@ class feedbacker(object):
         self.render_thread.start()
         self.plot_phase()
         
+    def take_background(self):
+        if not hasattr(self, 'trace'):
+            raise AttributeError('Take a spectrum to be used as background')
+        self.background = self.trace
+        
     def auto_scale_spec_axis(self):
+        # this may take ~200ms, do not add it to the mainloop!
+        if not hasattr(self, 'trace'):
+            raise AttributeError('Take a spectrum before trying autoscale')
         self.ax1r.clear()
         self.trace_line, = self.ax1r.plot([])
         self.ax1r.set_xlim(0, len(self.trace))
