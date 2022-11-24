@@ -25,6 +25,7 @@ class feedbacker(object):
         self.parent = parent
         self.slm_lib = slm_lib
         self.win = tk.Toplevel()
+        self.setpoint = 0
         if self.CAMERA: 
             title = 'SLM Phase Control - Feedbacker (spatial)'
         else:
@@ -601,13 +602,13 @@ class feedbacker(object):
             avs.AVS_StopMeasure(self.active_spec_handle)
 
     def fast_scan(self):
-        self.phis = np.linspace(0,2,60)
+        self.phis = np.linspace(0,2*np.pi,60)
         self.phi_ind = 0
         self.fast_scan_loop()
 
     def fast_scan_loop(self):
-        self.strvar_flat.set(self.phis[self.phi_ind])
-        self.feedback()
+        self.strvar_setp.set(self.phis[self.phi_ind])
+        self.set_setpoint()
         self.phi_ind = self.phi_ind + 1
         if self.phi_ind < 60:
             self.win.after(100, self.fast_scan_loop)
@@ -617,7 +618,7 @@ class feedbacker(object):
         print(poly_1)
     
     def set_setpoint(self):
-        self.pid.setpoint = float(self.ent_setp.get())
+        self.setpoint = float(self.ent_setp.get())
 
     def set_pid_val(self):
         self.pid.Kp = float(self.ent_pidp.get())
@@ -630,7 +631,7 @@ class feedbacker(object):
         
         while True:
             time.sleep(0.05)
-            correction = self.pid(self.im_angl)
+            correction = self.pid((self.im_angl - self.setpoint + np.pi) % (2*np.pi) - np.pi)
             self.strvar_flat.set(correction)
             self.feedback()
             print(self.pid.components)
