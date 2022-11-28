@@ -111,6 +111,8 @@ class feedbacker(object):
                                     command=self.auto_scale_spec_axis, width=13)
             but_bck = tk.Button(frm_plt_set, text='take background',
                                     command=self.take_background, width=13)
+            lbl_std = tk.Label(frm_plt_set, text='sigma:', width=6)
+            self.lbl_std_val = tk.Label(frm_plt_set, text='None', width=6)
         lbl_phi = tk.Label(frm_ratio, text='Phase shift:')
         lbl_phi_2 = tk.Label(frm_ratio, text='pi')
         self.strvar_flat = tk.StringVar()
@@ -222,8 +224,10 @@ class feedbacker(object):
         
         # setting up frm_spc_set
         if not self.CAMERA:
-            but_auto_scale.grid(row=0, column=0, padx=5, pady=(3,10))
-            but_bck.grid(row=1, column=0, padx=5)
+            but_auto_scale.grid(row=0, column=0, columnspan=2, padx=5, pady=(3,10))
+            but_bck.grid(row=1, column=0, columnspan=2, padx=5)
+            lbl_std.grid(row=2, column=0, pady=5)
+            self.lbl_std_val.grid(row=2, column=1, pady=5)
 
         # setting up buttons frm_bot
         but_exit.grid(row=1, column=0, padx=5, pady=5, ipadx=5, ipady=5)
@@ -490,6 +494,11 @@ class feedbacker(object):
             # creating the phase vector
             self.im_phase[:-1] = self.im_phase[1:]
             self.im_phase[-1] = self.im_angl
+            
+            # calculating standard deviation
+            mean = np.mean(self.im_phase)
+            std = np.sqrt(np.sum((self.im_phase-mean)**2) / (len(self.im_phase)-1))
+            self.lbl_std_val.config(text=np.round(std, 4))
 
             if self.stop_acquire == 1:
                 self.stop_acquire = 0
