@@ -122,6 +122,7 @@ class feedbacker(object):
             textvariable=self.strvar_flat)
         if SANTEC_SLM: text='4'
         else: text='8'
+        if not CAMERA: text='17'
         self.strvar_indexfft = tk.StringVar(self.win,text)
         lbl_indexfft = tk.Label(frm_ratio, text='Index fft:')
         lbl_angle = tk.Label(frm_ratio, text='Phase:')
@@ -376,7 +377,7 @@ class feedbacker(object):
         # start data acquisition
         cam1.stream_on()
         self.acq_mono(cam1, 10000)
-        self.cam_on_close(cam1)  #TODO: move this to where it actually gets executed
+        self.cam_on_close(cam1)
 
     def acq_mono(self, device, num):
         """
@@ -403,18 +404,17 @@ class feedbacker(object):
                 continue
 
             # # sum to area1
-            #TODO: change this so that program does not crash if no comma detected
-            #       add Dlab default values -> whiteboard (is this for settings file?)
             try:
                 xpoints = np.fromstring(self.ent_area1x.get(), sep=',')
                 ypoints = np.fromstring(self.ent_area1y.get(), sep=',')
+                assert len(xpoints) == len(ypoints) == 2
             except:
                 if SANTEC_SLM:
-                    xpoints = [400, 1050]
-                    ypoints = [630, 650]
+                    xpoints = np.array([400, 1050])
+                    ypoints = np.array([630, 650])
                 else:
-                    xpoints = [200, 550]
-                    ypoints = [470, 480]
+                    xpoints = np.array([200, 550])
+                    ypoints = np.array([470, 480])
             if xpoints[1] < xpoints[0]:
                 xpoints[1] = xpoints[0]+2
             if ypoints[1] < ypoints[0]:
